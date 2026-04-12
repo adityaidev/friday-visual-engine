@@ -450,7 +450,7 @@ export const HUD: React.FC<HUDProps> = ({
   return (
     <div className="absolute inset-0 pointer-events-none flex overflow-hidden font-sans select-none">
       <AnimatePresence>
-        {isLoading && <InitializationSequence onCancel={cancelAnalysis} estMs={45_000} />}
+        {isLoading && <InitializationSequence onCancel={cancelAnalysis} estMs={55_000} />}
       </AnimatePresence>
 
       <motion.div

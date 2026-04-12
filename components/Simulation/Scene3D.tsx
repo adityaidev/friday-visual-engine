@@ -3,7 +3,6 @@ import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import {
   OrbitControls,
   Stars,
-  Environment,
   Text,
   Edges,
   Billboard,
@@ -11,21 +10,32 @@ import {
   AdaptiveEvents,
   PerformanceMonitor,
   Bounds,
-  ContactShadows,
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { SystemComponent, NodeType, PrimitiveShape, GeometricPrimitive, CursorState } from '../../types';
 
-// Muted industrial palette — picked so all types read well against a dark bg
-// without the neon chaos of the old palette.
-const TypeColors: Record<NodeType, string> = {
-  [NodeType.COMPUTE]: '#7ecfff',
+// Blueprint CAD palette — bright mint/cyan edges on clean white surfaces,
+// matching the reference screenshot's technical-drawing aesthetic.
+const EDGE_COLOR = '#4ce1a3'; // mint green — primary edge line
+const EDGE_SELECTED = '#ffffff';
+const LABEL_COLORS: Record<NodeType, string> = {
+  [NodeType.COMPUTE]: '#61d9ff',
   [NodeType.STORAGE]: '#ffcd6b',
   [NodeType.NETWORK]: '#c792ea',
   [NodeType.SENSOR]: '#ff7a7a',
-  [NodeType.MECHANICAL]: '#e8ecf2',
+  [NodeType.MECHANICAL]: '#4ce1a3',
   [NodeType.POWER]: '#ffb347',
-  [NodeType.UNKNOWN]: '#d0d6e0',
+  [NodeType.UNKNOWN]: '#4ce1a3',
+};
+
+const TypeColors: Record<NodeType, string> = {
+  [NodeType.COMPUTE]: '#f4f6fa',
+  [NodeType.STORAGE]: '#f4f6fa',
+  [NodeType.NETWORK]: '#f4f6fa',
+  [NodeType.SENSOR]: '#f4f6fa',
+  [NodeType.MECHANICAL]: '#f4f6fa',
+  [NodeType.POWER]: '#f4f6fa',
+  [NodeType.UNKNOWN]: '#f4f6fa',
 };
 
 const GeometryRenderer: React.FC<{ shape: PrimitiveShape; args: number[] }> = React.memo(
@@ -60,33 +70,35 @@ const ProceduralMesh: React.FC<{
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
+  // Clean CAD-blueprint look: near-white diffuse with a hint of the material
+  // color the model picked. Not metallic, not glossy.
   const surfaceColor = useMemo(() => {
-    if (isSelected) return new THREE.Color('#ffffff');
-    if (colorHex) return new THREE.Color(colorHex);
-    return new THREE.Color(baseColor).lerp(new THREE.Color('#ffffff'), 0.15);
-  }, [isSelected, colorHex, baseColor]);
-
-  const emissiveTarget = useMemo(() => new THREE.Color('#000000'), []);
+    const base = new THREE.Color('#f2f4f8');
+    if (colorHex) {
+      const tint = new THREE.Color(colorHex);
+      base.lerp(tint, 0.18); // 82% white / 18% material tint
+    }
+    return base;
+  }, [colorHex]);
 
   useFrame(() => {
     const m = materialRef.current;
     const mesh = meshRef.current;
     if (!m || !mesh) return;
-    m.color.lerp(surfaceColor, 0.15);
+    m.color.lerp(surfaceColor, 0.2);
 
     if (isScanning) {
       const worldY = mesh.getWorldPosition(new THREE.Vector3()).y;
       const dist = Math.abs(worldY - scanY);
-      const glow = Math.max(0, 0.8 - dist * 0.4);
-      emissiveTarget.set('#00ff9d').multiplyScalar(glow);
-      m.emissive.lerp(emissiveTarget, 0.3);
+      const glow = Math.max(0, 0.6 - dist * 0.35);
+      m.emissive.setRGB(0, glow * 0.6, glow * 0.4);
       m.emissiveIntensity = 1;
     } else if (isSelected) {
-      emissiveTarget.set(baseColor).multiplyScalar(0.4);
-      m.emissive.lerp(emissiveTarget, 0.2);
+      m.emissive.setRGB(0.12, 0.25, 0.18);
+      m.emissiveIntensity = 1;
     } else {
-      emissiveTarget.set(baseColor).multiplyScalar(0.08);
-      m.emissive.lerp(emissiveTarget, 0.2);
+      m.emissive.setRGB(0.02, 0.04, 0.05);
+      m.emissiveIntensity = 1;
     }
   });
 
@@ -96,6 +108,8 @@ const ProceduralMesh: React.FC<{
     };
   }, []);
 
+  const edgeColor = isSelected ? EDGE_SELECTED : baseColor;
+
   return (
     <group position={position} rotation={rotation}>
       <mesh ref={meshRef} castShadow receiveShadow>
@@ -103,18 +117,11 @@ const ProceduralMesh: React.FC<{
         <meshStandardMaterial
           ref={materialRef}
           color={surfaceColor}
-          metalness={0.35}
-          roughness={0.45}
-          envMapIntensity={0.8}
-          emissive={'#000000'}
-          emissiveIntensity={1}
+          metalness={0.08}
+          roughness={0.75}
+          envMapIntensity={0.4}
         />
-        <Edges
-          threshold={18}
-          color={isSelected ? '#ffffff' : baseColor}
-          scale={1.001}
-          renderOrder={1}
-        />
+        <Edges threshold={14} color={edgeColor} scale={1.002} renderOrder={1} />
       </mesh>
     </group>
   );
@@ -153,7 +160,8 @@ const TechPart: React.FC<{
     return () => registerRef(id, null);
   }, [id, registerRef]);
 
-  const baseColor = TypeColors[type] || TypeColors.UNKNOWN;
+  const baseColor = EDGE_COLOR;
+  const labelColor = LABEL_COLORS[type] || LABEL_COLORS.UNKNOWN;
 
   return (
     <group
@@ -194,20 +202,19 @@ const TechPart: React.FC<{
           isScanning={isScanning}
         />
       )}
-      {isSelected && (
-        <Billboard position={[0, 1.8, 0]}>
-          <Text
-            fontSize={0.22}
-            color="#ffffff"
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.02}
-            outlineColor="#030712"
-          >
-            {data.name}
-          </Text>
-        </Billboard>
-      )}
+      <Billboard position={[0, 1.4, 0]}>
+        <Text
+          fontSize={isSelected ? 0.26 : 0.2}
+          color={isSelected ? '#ffffff' : labelColor}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.025}
+          outlineColor="#030712"
+          outlineBlur={0.02}
+        >
+          {data.name}
+        </Text>
+      </Billboard>
     </group>
   );
 };
@@ -393,24 +400,13 @@ const SceneContent: React.FC<{
   return (
     <>
       <color attach="background" args={['#030712']} />
-      <fog attach="fog" args={['#030712', 40, 120]} />
+      <fog attach="fog" args={['#030712', 55, 140]} />
 
-      {/* 3-point studio lighting for clean CAD look */}
-      <ambientLight intensity={0.35} />
-      <hemisphereLight args={['#8fb3d6', '#1a2030', 0.55]} />
-      <directionalLight
-        position={[15, 22, 12]}
-        intensity={1.8}
-        color="#ffffff"
-        castShadow={qualityTier >= 2}
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={30}
-        shadow-camera-bottom={-30}
-      />
-      <directionalLight position={[-12, 8, -10]} intensity={0.6} color="#7ecfff" />
-      <directionalLight position={[0, -8, -20]} intensity={0.25} color="#c792ea" />
+      {/* Even CAD-blueprint lighting — no harsh shadows, everything readable */}
+      <ambientLight intensity={0.9} />
+      <hemisphereLight args={['#e8eef7', '#1a2030', 0.6]} />
+      <directionalLight position={[14, 20, 10]} intensity={0.6} color="#ffffff" />
+      <directionalLight position={[-14, 12, -8]} intensity={0.35} color="#b7e4ff" />
 
       <ScanningPlane scanning={isScanning} scanYRef={scanYRef} />
       <HoloCursor cursorState={cursorState} />
@@ -434,29 +430,17 @@ const SceneContent: React.FC<{
 
       <DataStreams components={components} nodeRefs={nodeRefs} />
 
-      {qualityTier >= 2 && <Environment preset="studio" background={false} blur={1} />}
       <Stars
         radius={180}
         depth={60}
-        count={qualityTier >= 2 ? 2500 : 700}
-        factor={3}
+        count={qualityTier >= 2 ? 2000 : 500}
+        factor={2}
         saturation={0}
         fade
-        speed={0.3}
+        speed={0.2}
       />
 
-      {qualityTier >= 2 && (
-        <ContactShadows
-          position={[0, -7.99, 0]}
-          opacity={0.45}
-          scale={60}
-          blur={2.2}
-          far={18}
-          resolution={1024}
-          color="#000000"
-        />
-      )}
-      <gridHelper args={[60, 60, 0x1f2937, 0x0b1220]} position={[0, -8, 0]} />
+      <gridHelper args={[80, 80, 0x1a3a2a, 0x0a1410]} position={[0, -8, 0]} />
       <OrbitControls
         ref={controlsRef as React.MutableRefObject<null>}
         enablePan

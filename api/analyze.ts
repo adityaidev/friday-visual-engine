@@ -13,13 +13,22 @@ function applyCors(res: VercelResponse, origin: string | null) {
   res.setHeader('Vary', 'Origin');
 }
 
-function applyRateHeaders(res: VercelResponse, rl: { remaining: number; resetMs: number; retryAfterMs?: number }) {
+function applyRateHeaders(
+  res: VercelResponse,
+  rl: { remaining: number; resetMs: number; retryAfterMs?: number },
+) {
   res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
   res.setHeader('X-RateLimit-Reset', String(Math.floor(rl.resetMs / 1000)));
   if (rl.retryAfterMs) res.setHeader('Retry-After', String(Math.ceil(rl.retryAfterMs / 1000)));
 }
 
-function err(res: VercelResponse, code: string, message: string, status = 500, extra: Record<string, unknown> = {}) {
+function err(
+  res: VercelResponse,
+  code: string,
+  message: string,
+  status = 500,
+  extra: Record<string, unknown> = {},
+) {
   return res.status(status).json({ error: { code, message, ...extra } });
 }
 
@@ -71,11 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   try {
     const ai = getClient();
-    // Pro model for the smart part (naming/layout of 20+ components).
-    // Flash-lite for the mechanical structure-fill phase (not a reasoning task).
-    // This keeps Pro-tier intelligence where it matters while fitting Vercel's 60s cap.
-    const skeletonModel = tier === 'flash' ? MODELS.fast : MODELS.reasoning;
-    const structureModel = MODELS.fast;
+    const modelId = tier === 'flash' ? MODELS.fast : MODELS.reasoning;
 
     const imagePart = (() => {
       if (!imageBase64) return null;
@@ -85,135 +90,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return { inlineData: { mimeType: mime, data } };
     })();
 
-    // ─────────────────────── Phase 1: skeleton ───────────────────────
-    // Small output (~1.5k tokens) finishes in ~10-15s on Pro.
-    const skeletonPrompt = imageBase64
-      ? `Analyze this image. List 22-28 components of the object shown. Context: ${query}.
-Return JSON array:
-[{ "name": "Snake_Case_Specific_Name",
-   "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
-   "description": "one short sentence",
-   "relativePosition": [x,y,z]   (spread across roughly -5..5 in each axis with engineering-accurate layout),
-   "connections": [ names of other components ],
-   "primitiveHint": "short phrase describing visual shape — e.g. 'cylinder + top cone + 4 mount tabs'"
-}]
-No prose. JSON array only.`
-      : `List 22-28 engineering components of: ${query}.
-Return JSON array:
-[{ "name": "Snake_Case_Specific_Name",
-   "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
-   "description": "one short sentence",
-   "relativePosition": [x,y,z]   (spread across roughly -5..5 in each axis with engineering-accurate layout),
-   "connections": [ names of other components ],
-   "primitiveHint": "short phrase describing visual shape — e.g. 'cylinder + top cone + 4 mount tabs'"
-}]
-Examples of good names: Chassis_Main_Frame, Wash_Drum_Inner, Drive_Motor_BLDC, Suspension_Strut_Rear_Left, Door_Gasket_Rubber.
-No prose. JSON array only.`;
+    const mainPrompt = `You are reconstructing: ${query || 'the object in the image'}
 
-    const skelParts: Array<Record<string, unknown>> = [{ text: skeletonPrompt }];
-    if (imagePart) skelParts.push(imagePart);
+HARD REQUIREMENTS:
+• Output 20-24 components that ASSEMBLE INTO A RECOGNIZABLE shape matching the target. The viewer MUST be able to tell what this is.
+• All components share ONE world coordinate system. relativePosition[] places each component in world space so they fit together (not random clouds).
+• Each component has 2-4 primitives in LOCAL space (around 0,0,0) that form ONE solid sub-assembly.
+• Primary structure first: outer shell / chassis / frame that defines the silhouette. Secondary parts (internals, controls, fasteners) fit inside or on the outer shell.
+• Overall assembly fits roughly in a 10×10×10 bounding box centered at origin.
+• colorHex is crucial: main chassis panels should be light gray/white #d8dde3 or #e8ecf2; accent trim/pipes in steel #b8c0cc, copper #b87333, rubber seals #2a2a2a, control screens #1a1a1a, wiring #ff7a00. No neon colors.
 
-    const skelResp = await ai.models.generateContent({
-      model: skeletonModel,
-      contents: { role: 'user', parts: skelParts },
+OUTPUT — JSON only, no prose, no markdown fence:
+{
+ "systemName": "...",
+ "description": "one short sentence",
+ "components": [
+  {
+   "name": "Snake_Case_Descriptive_Name",
+   "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
+   "status": "optimal",
+   "description": "short",
+   "connections": ["names of components touching this one"],
+   "relativePosition": [x,y,z],
+   "structure": [
+    {"shape":"BOX"|"CYLINDER"|"SPHERE"|"CAPSULE"|"CONE"|"TORUS",
+     "args":[...],
+     "position":[x,y,z],
+     "rotation":[rx,ry,rz],
+     "colorHex":"#RRGGBB"}
+   ]
+  }
+ ]
+}
+
+args conventions:
+ BOX [w,h,d]   CYLINDER [radiusTop, radiusBottom, height]   SPHERE [radius]
+ CAPSULE [radius, length]   CONE [radius, height]   TORUS [majorR, minorR]`;
+
+    const parts: Array<Record<string, unknown>> = [{ text: mainPrompt }];
+    if (imagePart) parts.push(imagePart);
+
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: { role: 'user', parts },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ARCHITECT,
         responseMimeType: 'application/json',
+        temperature: 0.6,
       },
     });
-    const skelText = (skelResp.text || '').replace(/```json|```/g, '').trim();
-    let skeleton: Array<Record<string, unknown>> = [];
+
+    const text = response.text;
+    if (!text) {
+      err(res, 'UPSTREAM', 'Empty response from model', 502);
+      return;
+    }
+
+    const clean = text.replace(/```json|```/g, '').trim();
+    let raw: unknown;
     try {
-      const parsed = JSON.parse(skelText);
-      skeleton = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray((parsed as Record<string, unknown>).components)
-          ? ((parsed as Record<string, unknown>).components as Array<Record<string, unknown>>)
-          : [];
+      raw = JSON.parse(clean);
     } catch {
-      err(res, 'UPSTREAM', 'Skeleton JSON invalid', 502);
+      err(res, 'UPSTREAM', 'Model returned invalid JSON', 502);
       return;
     }
-    if (skeleton.length < 4) {
-      err(res, 'UPSTREAM', 'Skeleton returned too few components', 502);
-      return;
-    }
-
-    // ─────────────────────── Phase 2: structure (parallel halves) ───────────────────────
-    const mid = Math.ceil(skeleton.length / 2);
-    const half1 = skeleton.slice(0, mid);
-    const half2 = skeleton.slice(mid);
-
-    const buildStructurePrompt = (part: Array<Record<string, unknown>>) => `For each of the following components, generate a 'structure' array of 2-5 primitives whose combined shape forms a RECOGNISABLE, solid-looking part matching the primitiveHint. Position primitives in LOCAL space around (0,0,0) so they assemble into the part.
-Components:
-${JSON.stringify(part.map((c) => ({ name: c.name, hint: c.primitiveHint, type: c.type })))}
-
-Return JSON array:
-[{ "name": "...",
-   "structure": [
-     { "shape": "BOX"|"CYLINDER"|"SPHERE"|"CAPSULE"|"CONE"|"TORUS",
-       "args": [...],
-       "position": [x,y,z],
-       "rotation": [rx,ry,rz],
-       "colorHex": "#RRGGBB" (steel #C0C0C0, copper #b87333, rubber #2a2a2a, glass #8899aa, plastic #4a4a4a, wire #ff7a00)
-     }
-   ]
-}]
-No prose. JSON array only.`;
-
-    const runStruct = (part: Array<Record<string, unknown>>) =>
-      ai.models.generateContent({
-        model: structureModel,
-        contents: buildStructurePrompt(part),
-        config: { responseMimeType: 'application/json' },
-      });
-
-    const [struct1Resp, struct2Resp] = await Promise.all([runStruct(half1), runStruct(half2)]);
-
-    const parseStruct = (r: { text?: string }): Array<Record<string, unknown>> => {
-      try {
-        const t = (r.text || '').replace(/```json|```/g, '').trim();
-        const p = JSON.parse(t);
-        return Array.isArray(p) ? p : (p.components as Array<Record<string, unknown>>) || [];
-      } catch {
-        return [];
-      }
-    };
-
-    const structByName = new Map<string, unknown>();
-    [...parseStruct(struct1Resp), ...parseStruct(struct2Resp)].forEach((row) => {
-      const name = typeof row.name === 'string' ? row.name.toLowerCase() : '';
-      if (name && row.structure) structByName.set(name, row.structure);
-    });
-
-    // ─────────────────────── Merge + normalize ───────────────────────
-    const merged = {
-      systemName: `${query.split('.')[0].trim().slice(0, 80) || 'System'}`,
-      description: `Engineering reconstruction with ${skeleton.length} sub-assemblies.`,
-      components: skeleton.map((s) => ({
-        name: s.name,
-        type: s.type,
-        description: s.description,
-        status: 'optimal',
-        connections: s.connections,
-        relativePosition: s.relativePosition,
-        structure: structByName.get(
-          typeof s.name === 'string' ? s.name.toLowerCase() : '',
-        ) || [
-          {
-            shape: 'BOX',
-            args: [1, 1, 1],
-            position: [0, 0, 0],
-            rotation: [0, 0, 0],
-            colorHex: '#c0c0c0',
-          },
-        ],
-      })),
-    };
 
     let normalized;
     try {
-      normalized = normalizeAnalysis(merged);
+      normalized = normalizeAnalysis(raw);
     } catch (e) {
       err(res, 'UPSTREAM', (e as Error).message, 502);
       return;
@@ -226,7 +170,7 @@ No prose. JSON array only.`;
     err(
       res,
       isQuota ? 'QUOTA_EXCEEDED' : 'UPSTREAM',
-      isQuota ? 'Gemini quota exhausted. Try flash tier or retry later.' : msg,
+      isQuota ? 'Gemini quota exhausted. Try again in a minute.' : msg,
       isQuota ? 429 : 502,
     );
   }
