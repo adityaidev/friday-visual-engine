@@ -68,17 +68,40 @@ async function parseOrThrow<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-export async function analyzeSystem(opts: AnalyzeOptions): Promise<SystemAnalysis> {
-  const res = await fetchWithBackoff(`${API_BASE}/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: opts.query,
-      imageBase64: opts.imageBase64,
-      tier: opts.tier || 'flash',
-    }),
-    signal: opts.signal,
-  });
+async function callAnalyze(
+  tier: ModelTier,
+  opts: AnalyzeOptions,
+): Promise<Response> {
+  return fetchWithBackoff(
+    `${API_BASE}/analyze`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: opts.query,
+        imageBase64: opts.imageBase64,
+        tier,
+      }),
+      signal: opts.signal,
+    },
+    1,
+  );
+}
+
+export async function analyzeSystem(
+  opts: AnalyzeOptions,
+  onFallback?: (reason: string) => void,
+): Promise<SystemAnalysis> {
+  const primaryTier = opts.tier || 'pro';
+  let res = await callAnalyze(primaryTier, opts);
+
+  // If Pro tier hits timeout (504) or server failure, gracefully fall back to flash.
+  // The prompt still asks for the same 20-30 components — flash just generates faster.
+  if (primaryTier === 'pro' && (res.status === 504 || res.status === 502)) {
+    onFallback?.(`Pro tier timed out — retrying with Flash for faster response.`);
+    res = await callAnalyze('flash', opts);
+  }
+
   return parseOrThrow<SystemAnalysis>(res);
 }
 

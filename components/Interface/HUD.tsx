@@ -308,11 +308,17 @@ export const HUD: React.FC<HUDProps> = ({
 
     try {
       const base64 = selectedImage || undefined;
-      const result = await analyzeSystem({
-        query,
-        imageBase64: base64,
-        signal: controller.signal,
-      });
+      const result = await analyzeSystem(
+        {
+          query,
+          imageBase64: base64,
+          signal: controller.signal,
+        },
+        (reason) => {
+          toast(reason, 'warning', 6000);
+          logSystem(reason);
+        },
+      );
       onSystemLoad(result);
       logSystem(
         `Project '${result.systemName}' compiled. ${result.components.length} subsystems generated.`,
@@ -444,7 +450,7 @@ export const HUD: React.FC<HUDProps> = ({
   return (
     <div className="absolute inset-0 pointer-events-none flex overflow-hidden font-sans select-none">
       <AnimatePresence>
-        {isLoading && <InitializationSequence onCancel={cancelAnalysis} />}
+        {isLoading && <InitializationSequence onCancel={cancelAnalysis} estMs={45_000} />}
       </AnimatePresence>
 
       <motion.div

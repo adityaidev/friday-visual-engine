@@ -77,8 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const parts: Array<Record<string, unknown>> = [
       {
         text: imageBase64
-          ? `Analyze this technical image. Deconstruct it into a 3D engineering assembly with 6-15 components. Context: ${query}`
-          : `Engineering breakdown of: ${query}. Generate a 3D reconstruction with 6-15 composite components. For extremely complex systems (full engines, chips, buildings), you may use up to 20 components. Prefer fewer well-detailed components over many shallow ones.`,
+          ? `Analyze this technical image. Deconstruct the object shown into a 3D engineering assembly. List every visible component AND infer the internal mechanisms. For complex machines target 20-30+ components. Each component must be a composite of multiple primitives. Context: ${query}`
+          : `Perform a deep structural engineering breakdown and 3D reconstruction of: ${query}.
+- List EVERY functional sub-assembly — structural chassis, housings, internals, fasteners, controls, sensors, wiring paths.
+- For complex machines (engines, appliances, chips, vehicles, turbines): generate at LEAST 20, typically 25-30 components.
+- Each component MUST be a composite of 2-6 primitives arranged to form a realistic, recognisable shape.
+- Assign precise local positions/rotations so primitives form coherent solids.
+- Use colorHex on primitives to differentiate materials (copper #b87333, steel #C0C0C0, rubber #2a2a2a, wiring #ff7a00).`,
       },
     ];
     if (imageBase64) {
