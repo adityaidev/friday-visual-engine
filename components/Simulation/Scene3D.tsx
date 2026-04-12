@@ -14,18 +14,19 @@ import {
 import * as THREE from 'three';
 import { SystemComponent, NodeType, PrimitiveShape, GeometricPrimitive, CursorState } from '../../types';
 
-// Blueprint CAD palette — bright mint/cyan edges on clean white surfaces,
-// matching the reference screenshot's technical-drawing aesthetic.
-const EDGE_COLOR = '#4ce1a3'; // mint green — primary edge line
+// Holographic blueprint palette — translucent white surfaces with bright
+// cyan edges, matching the reference (see-through cabinet with internals
+// visible through the walls, labels floating near each part).
+const EDGE_COLOR = '#4de3ff'; // bright cyan — dominant edge line
 const EDGE_SELECTED = '#ffffff';
 const LABEL_COLORS: Record<NodeType, string> = {
-  [NodeType.COMPUTE]: '#61d9ff',
+  [NodeType.COMPUTE]: '#4de3ff',
   [NodeType.STORAGE]: '#ffcd6b',
   [NodeType.NETWORK]: '#c792ea',
-  [NodeType.SENSOR]: '#ff7a7a',
-  [NodeType.MECHANICAL]: '#4ce1a3',
+  [NodeType.SENSOR]: '#ff8a8a',
+  [NodeType.MECHANICAL]: '#6bff9e',
   [NodeType.POWER]: '#ffb347',
-  [NodeType.UNKNOWN]: '#4ce1a3',
+  [NodeType.UNKNOWN]: '#4de3ff',
 };
 
 const TypeColors: Record<NodeType, string> = {
@@ -65,18 +66,18 @@ const ProceduralMesh: React.FC<{
   isSelected: boolean;
   scanY: number;
   isScanning: boolean;
-}> = ({ primitive, baseColor, isSelected, scanY, isScanning }) => {
+}> = ({ primitive, baseColor: _baseColor, isSelected, scanY, isScanning }) => {
   const { shape, args, position, rotation, colorHex } = primitive;
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
-  // Clean CAD-blueprint look: near-white diffuse with a hint of the material
-  // color the model picked. Not metallic, not glossy.
+  // Translucent holographic surface — clean white tinted slightly by material,
+  // low opacity so interior parts show through outer shell.
   const surfaceColor = useMemo(() => {
-    const base = new THREE.Color('#f2f4f8');
+    const base = new THREE.Color('#eef4ff');
     if (colorHex) {
       const tint = new THREE.Color(colorHex);
-      base.lerp(tint, 0.18); // 82% white / 18% material tint
+      base.lerp(tint, 0.25);
     }
     return base;
   }, [colorHex]);
@@ -90,14 +91,14 @@ const ProceduralMesh: React.FC<{
     if (isScanning) {
       const worldY = mesh.getWorldPosition(new THREE.Vector3()).y;
       const dist = Math.abs(worldY - scanY);
-      const glow = Math.max(0, 0.6 - dist * 0.35);
-      m.emissive.setRGB(0, glow * 0.6, glow * 0.4);
-      m.emissiveIntensity = 1;
+      const glow = Math.max(0, 0.9 - dist * 0.4);
+      m.emissive.setRGB(0, glow * 0.9, glow * 0.8);
+      m.emissiveIntensity = 1.6;
     } else if (isSelected) {
-      m.emissive.setRGB(0.12, 0.25, 0.18);
+      m.emissive.setRGB(0.2, 0.5, 0.55);
       m.emissiveIntensity = 1;
     } else {
-      m.emissive.setRGB(0.02, 0.04, 0.05);
+      m.emissive.setRGB(0.06, 0.14, 0.18);
       m.emissiveIntensity = 1;
     }
   });
@@ -108,20 +109,34 @@ const ProceduralMesh: React.FC<{
     };
   }, []);
 
-  const edgeColor = isSelected ? EDGE_SELECTED : baseColor;
+  const edgeColor = isSelected ? EDGE_SELECTED : EDGE_COLOR;
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh ref={meshRef} castShadow receiveShadow>
+      <mesh ref={meshRef}>
         <GeometryRenderer shape={shape} args={args} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           ref={materialRef}
           color={surfaceColor}
-          metalness={0.08}
-          roughness={0.75}
-          envMapIntensity={0.4}
+          transparent
+          opacity={isSelected ? 0.32 : 0.15}
+          metalness={0.05}
+          roughness={0.1}
+          transmission={0.5}
+          thickness={0.3}
+          ior={1.25}
+          clearcoat={0.4}
+          clearcoatRoughness={0.25}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          envMapIntensity={0.3}
         />
-        <Edges threshold={14} color={edgeColor} scale={1.002} renderOrder={1} />
+        <Edges
+          threshold={12}
+          color={edgeColor}
+          scale={1.003}
+          renderOrder={3}
+        />
       </mesh>
     </group>
   );
