@@ -53,3 +53,4 @@ coverage
 *.tsbuildinfo
 
 .vercel
+.tmp/
