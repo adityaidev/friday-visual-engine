@@ -142,17 +142,6 @@ Output ONLY a JSON array, no prose, no markdown fence:
 
 First component = outer shell at [0,0,0]. Subsequent components ordered largest→smallest. Use the FULL 3D volume.`;
 
-Produce 22-30 components. Use symmetric naming for paired parts (Front_Left, Front_Right). Output ONLY a JSON array (no prose, no markdown fence):
-[{ "name": "Snake_Case_Name",
-   "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
-   "description": "short",
-   "relativePosition": [x,y,z],
-   "connections": [ names ],
-   "primitiveHint": "specific shape + size (e.g. 'cylinder r=0.5 L=1.2 vertical for drain pump body')"
-}]
-
-First component MUST be the outer shell at [0,0,0]. Remaining components ordered largest→smallest. NO duplicate positions.`;
-
     const skelParts: Array<Record<string, unknown>> = [{ text: skeletonPrompt }];
     if (imagePart) skelParts.push(imagePart);
 
