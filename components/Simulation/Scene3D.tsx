@@ -1,51 +1,31 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Stars, Environment, Text, Edges, Billboard, AdaptiveDpr, AdaptiveEvents, PerformanceMonitor } from '@react-three/drei';
+import {
+  OrbitControls,
+  Stars,
+  Environment,
+  Text,
+  Edges,
+  Billboard,
+  AdaptiveDpr,
+  AdaptiveEvents,
+  PerformanceMonitor,
+  Bounds,
+  ContactShadows,
+} from '@react-three/drei';
 import * as THREE from 'three';
 import { SystemComponent, NodeType, PrimitiveShape, GeometricPrimitive, CursorState } from '../../types';
 
-const HologramShader = {
-  uniforms: {
-    time: { value: 0 },
-    color: { value: new THREE.Color('#00f0ff') },
-    scanPos: { value: -100.0 },
-  },
-  vertexShader: `
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-    void main() {
-      vNormal = normalize(normalMatrix * normal);
-      vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float time;
-    uniform vec3 color;
-    uniform float scanPos;
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-    void main() {
-      vec3 viewDirection = normalize(cameraPosition - vPosition);
-      float fresnel = pow(1.0 - dot(viewDirection, vNormal), 3.0);
-      float scanline = sin(vPosition.y * 50.0 + time * 2.0) * 0.1 + 0.9;
-      float scanDist = abs(vPosition.y - scanPos);
-      float scanBeam = smoothstep(0.5, 0.0, scanDist) * 2.0;
-      vec3 finalColor = color * scanline + color * fresnel + vec3(1.0) * scanBeam;
-      float alpha = 0.15 + fresnel * 0.5 + scanBeam;
-      gl_FragColor = vec4(finalColor, alpha);
-    }
-  `,
-};
-
+// Muted industrial palette — picked so all types read well against a dark bg
+// without the neon chaos of the old palette.
 const TypeColors: Record<NodeType, string> = {
-  [NodeType.COMPUTE]: '#00f0ff',
-  [NodeType.STORAGE]: '#ffd700',
-  [NodeType.NETWORK]: '#bd00ff',
-  [NodeType.SENSOR]: '#ff0055',
-  [NodeType.MECHANICAL]: '#55ff55',
-  [NodeType.POWER]: '#ffa500',
-  [NodeType.UNKNOWN]: '#ffffff',
+  [NodeType.COMPUTE]: '#7ecfff',
+  [NodeType.STORAGE]: '#ffcd6b',
+  [NodeType.NETWORK]: '#c792ea',
+  [NodeType.SENSOR]: '#ff7a7a',
+  [NodeType.MECHANICAL]: '#e8ecf2',
+  [NodeType.POWER]: '#ffb347',
+  [NodeType.UNKNOWN]: '#d0d6e0',
 };
 
 const GeometryRenderer: React.FC<{ shape: PrimitiveShape; args: number[] }> = React.memo(
@@ -74,20 +54,40 @@ const ProceduralMesh: React.FC<{
   baseColor: string;
   isSelected: boolean;
   scanY: number;
-}> = ({ primitive, baseColor, isSelected, scanY }) => {
+  isScanning: boolean;
+}> = ({ primitive, baseColor, isSelected, scanY, isScanning }) => {
   const { shape, args, position, rotation, colorHex } = primitive;
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const finalColor = useMemo(
-    () => new THREE.Color(isSelected ? '#ffffff' : colorHex || baseColor),
-    [isSelected, colorHex, baseColor],
-  );
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
 
-  useFrame((state) => {
+  const surfaceColor = useMemo(() => {
+    if (isSelected) return new THREE.Color('#ffffff');
+    if (colorHex) return new THREE.Color(colorHex);
+    return new THREE.Color(baseColor).lerp(new THREE.Color('#ffffff'), 0.15);
+  }, [isSelected, colorHex, baseColor]);
+
+  const emissiveTarget = useMemo(() => new THREE.Color('#000000'), []);
+
+  useFrame(() => {
     const m = materialRef.current;
-    if (!m) return;
-    m.uniforms.time.value = state.clock.elapsedTime;
-    m.uniforms.color.value.lerp(finalColor, 0.1);
-    m.uniforms.scanPos.value = scanY;
+    const mesh = meshRef.current;
+    if (!m || !mesh) return;
+    m.color.lerp(surfaceColor, 0.15);
+
+    if (isScanning) {
+      const worldY = mesh.getWorldPosition(new THREE.Vector3()).y;
+      const dist = Math.abs(worldY - scanY);
+      const glow = Math.max(0, 0.8 - dist * 0.4);
+      emissiveTarget.set('#00ff9d').multiplyScalar(glow);
+      m.emissive.lerp(emissiveTarget, 0.3);
+      m.emissiveIntensity = 1;
+    } else if (isSelected) {
+      emissiveTarget.set(baseColor).multiplyScalar(0.4);
+      m.emissive.lerp(emissiveTarget, 0.2);
+    } else {
+      emissiveTarget.set(baseColor).multiplyScalar(0.08);
+      m.emissive.lerp(emissiveTarget, 0.2);
+    }
   });
 
   useEffect(() => {
@@ -98,25 +98,23 @@ const ProceduralMesh: React.FC<{
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh>
+      <mesh ref={meshRef} castShadow receiveShadow>
         <GeometryRenderer shape={shape} args={args} />
-        <shaderMaterial
+        <meshStandardMaterial
           ref={materialRef}
-          args={[HologramShader]}
-          transparent
-          side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
+          color={surfaceColor}
+          metalness={0.35}
+          roughness={0.45}
+          envMapIntensity={0.8}
+          emissive={'#000000'}
+          emissiveIntensity={1}
         />
-      </mesh>
-      <mesh>
-        <GeometryRenderer shape={shape} args={args} />
-        <meshBasicMaterial color={finalColor} wireframe transparent opacity={0.2} />
-      </mesh>
-      <mesh>
-        <GeometryRenderer shape={shape} args={args} />
-        <Edges threshold={15} color={isSelected ? 'white' : baseColor} scale={1} />
-        <meshBasicMaterial visible={false} />
+        <Edges
+          threshold={18}
+          color={isSelected ? '#ffffff' : baseColor}
+          scale={1.001}
+          renderOrder={1}
+        />
       </mesh>
     </group>
   );
@@ -129,7 +127,8 @@ const TechPart: React.FC<{
   expansion: number;
   registerRef: (id: string, obj: THREE.Object3D | null) => void;
   scanY: number;
-}> = ({ data, onSelect, isSelected, expansion, registerRef, scanY }) => {
+  isScanning: boolean;
+}> = ({ data, onSelect, isSelected, expansion, registerRef, scanY, isScanning }) => {
   const { type, relativePosition, id, structure } = data;
   const groupRef = useRef<THREE.Group>(null);
   const targetPos = useMemo(() => new THREE.Vector3(), []);
@@ -178,6 +177,7 @@ const TechPart: React.FC<{
             baseColor={baseColor}
             isSelected={isSelected}
             scanY={scanY}
+            isScanning={isScanning}
           />
         ))
       ) : (
@@ -191,13 +191,23 @@ const TechPart: React.FC<{
           baseColor={baseColor}
           isSelected={isSelected}
           scanY={scanY}
+          isScanning={isScanning}
         />
       )}
-      <Billboard position={[0, 1.5, 0]}>
-        <Text fontSize={0.2} color={isSelected ? '#ffffff' : baseColor} anchorX="center" anchorY="middle">
-          {data.name}
-        </Text>
-      </Billboard>
+      {isSelected && (
+        <Billboard position={[0, 1.8, 0]}>
+          <Text
+            fontSize={0.22}
+            color="#ffffff"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.02}
+            outlineColor="#030712"
+          >
+            {data.name}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 };
@@ -375,51 +385,87 @@ const SceneContent: React.FC<{
     });
   }, [components]);
 
+  const componentsKey = useMemo(
+    () => components.map((c) => c.id).join('|'),
+    [components],
+  );
+
   return (
     <>
-      <ambientLight intensity={0.2} />
-      <pointLight position={[20, 20, 20]} intensity={2} color="#ffffff" />
-      <pointLight position={[-20, -10, -10]} intensity={1} color="#00aaff" />
-      {qualityTier >= 2 && <spotLight position={[0, 30, 0]} angle={0.6} penumbra={1} intensity={2} castShadow />}
+      <color attach="background" args={['#030712']} />
+      <fog attach="fog" args={['#030712', 40, 120]} />
+
+      {/* 3-point studio lighting for clean CAD look */}
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#8fb3d6', '#1a2030', 0.55]} />
+      <directionalLight
+        position={[15, 22, 12]}
+        intensity={1.8}
+        color="#ffffff"
+        castShadow={qualityTier >= 2}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
+      />
+      <directionalLight position={[-12, 8, -10]} intensity={0.6} color="#7ecfff" />
+      <directionalLight position={[0, -8, -20]} intensity={0.25} color="#c792ea" />
 
       <ScanningPlane scanning={isScanning} scanYRef={scanYRef} />
       <HoloCursor cursorState={cursorState} />
 
-      <group>
-        {components.map((comp) => (
-          <TechPart
-            key={comp.id}
-            data={comp}
-            isSelected={selectedId === comp.id}
-            onSelect={onSelect}
-            expansion={expansion}
-            registerRef={registerRef}
-            scanY={scanYRef.current}
-          />
-        ))}
-      </group>
+      <Bounds key={componentsKey} fit clip observe margin={1.3} maxDuration={0.8}>
+        <group>
+          {components.map((comp) => (
+            <TechPart
+              key={comp.id}
+              data={comp}
+              isSelected={selectedId === comp.id}
+              onSelect={onSelect}
+              expansion={expansion}
+              registerRef={registerRef}
+              scanY={scanYRef.current}
+              isScanning={isScanning}
+            />
+          ))}
+        </group>
+      </Bounds>
 
       <DataStreams components={components} nodeRefs={nodeRefs} />
 
-      {qualityTier >= 2 && <Environment preset="city" blur={0.8} />}
+      {qualityTier >= 2 && <Environment preset="studio" background={false} blur={1} />}
       <Stars
-        radius={150}
-        depth={50}
-        count={qualityTier >= 2 ? 5000 : 1000}
-        factor={4}
+        radius={180}
+        depth={60}
+        count={qualityTier >= 2 ? 2500 : 700}
+        factor={3}
         saturation={0}
         fade
-        speed={0.5}
+        speed={0.3}
       />
 
-      <gridHelper args={[60, 60, 0x111111, 0x050505]} position={[0, -8, 0]} />
+      {qualityTier >= 2 && (
+        <ContactShadows
+          position={[0, -7.99, 0]}
+          opacity={0.45}
+          scale={60}
+          blur={2.2}
+          far={18}
+          resolution={1024}
+          color="#000000"
+        />
+      )}
+      <gridHelper args={[60, 60, 0x1f2937, 0x0b1220]} position={[0, -8, 0]} />
       <OrbitControls
         ref={controlsRef as React.MutableRefObject<null>}
         enablePan
         enableZoom
         enableRotate
         autoRotate={false}
-        dampingFactor={0.05}
+        dampingFactor={0.08}
+        minDistance={2}
+        maxDistance={80}
       />
     </>
   );
@@ -446,12 +492,12 @@ export const Scene3D: React.FC<{
     <div className="w-full h-full bg-lumina-base">
       <Canvas
         shadows={qualityTier >= 2}
-        camera={{ position: [12, 8, 12], fov: 40 }}
+        camera={{ position: [14, 9, 14], fov: 38, near: 0.1, far: 200 }}
         dpr={[1, Math.min(2, qualityTier >= 2 ? 2 : 1.5)]}
         gl={{
-          antialias: qualityTier >= 2,
+          antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
+          toneMappingExposure: 1.05,
           powerPreference: 'high-performance',
         }}
       >

@@ -68,11 +68,12 @@ async function parseOrThrow<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-async function callAnalyze(
-  tier: ModelTier,
+export async function analyzeSystem(
   opts: AnalyzeOptions,
-): Promise<Response> {
-  return fetchWithBackoff(
+  _onFallback?: (reason: string) => void,
+): Promise<SystemAnalysis> {
+  const tier = opts.tier || 'pro';
+  const res = await fetchWithBackoff(
     `${API_BASE}/analyze`,
     {
       method: 'POST',
@@ -86,22 +87,6 @@ async function callAnalyze(
     },
     1,
   );
-}
-
-export async function analyzeSystem(
-  opts: AnalyzeOptions,
-  onFallback?: (reason: string) => void,
-): Promise<SystemAnalysis> {
-  const primaryTier = opts.tier || 'pro';
-  let res = await callAnalyze(primaryTier, opts);
-
-  // If Pro tier hits timeout (504) or server failure, gracefully fall back to flash.
-  // The prompt still asks for the same 20-30 components — flash just generates faster.
-  if (primaryTier === 'pro' && (res.status === 504 || res.status === 502)) {
-    onFallback?.(`Pro tier timed out — retrying with Flash for faster response.`);
-    res = await callAnalyze('flash', opts);
-  }
-
   return parseOrThrow<SystemAnalysis>(res);
 }
 
