@@ -2,9 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 
 export const MODELS = {
   reasoning: 'gemini-3.1-pro-preview',
-  fast: 'gemini-3.1-flash',
-  fastLite: 'gemini-3.1-flash-lite',
-  live: 'gemini-live-2.5-flash-native-audio',
+  fast: 'gemini-flash-latest',
+  fastLite: 'gemini-3.1-flash-lite-preview',
+  live: 'gemini-3.1-flash-live-preview',
 } as const;
 
 export function getClient(): GoogleGenAI {

@@ -8,8 +8,8 @@ export default async function handler(): Promise<Response> {
       timestamp: new Date().toISOString(),
       models: {
         reasoning: 'gemini-3.1-pro-preview',
-        fast: 'gemini-3.1-flash',
-        live: 'gemini-live-2.5-flash-native-audio',
+        fast: 'gemini-flash-latest',
+        live: 'gemini-3.1-flash-live-preview',
       },
     }),
     {

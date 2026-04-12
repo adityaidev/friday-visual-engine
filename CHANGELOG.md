@@ -21,7 +21,7 @@ All notable changes to FRIDAY will be documented here. Format based on [Keep a C
 - **Full docs**: README, ARCHITECTURE, DEPLOYMENT, API, CONTRIBUTING, SECURITY.
 
 ### Changed
-- **Migrated Gemini models**: `gemini-3-pro-preview` → `gemini-3.1-pro-preview`; `gemini-2.5-flash-native-audio-preview-09-2025` → `gemini-live-2.5-flash-native-audio`.
+- **Migrated Gemini models**: `gemini-3-pro-preview` → `gemini-3.1-pro-preview`; `gemini-2.5-flash-native-audio-preview-09-2025` → `gemini-3.1-flash-live-preview`.
 - **System prompt** rewritten to remove IP-violation phrasing and add explicit refusal contract for prompt injection.
 - **3D rendering**: ACES Filmic tone mapping, adaptive DPR, quality-tier downgrade on low FPS, `PerformanceMonitor`, lazy-loaded MediaPipe, Three.js resource disposal.
 - **Message timestamps** switched from `Date` to `number` for serialization safety.

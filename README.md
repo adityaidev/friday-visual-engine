@@ -39,7 +39,7 @@ FRIDAY is a **generative immersive visualization engine** that turns natural-lan
 | Layer | Technology |
 |---|---|
 | **Rendering** | React 19, Three.js 0.181, @react-three/fiber, @react-three/drei |
-| **AI** | Gemini 3.1 Pro Preview (reasoning), Gemini 3.1 Flash (chat + diagnostics), Gemini Live 2.5 Flash native-audio (voice) |
+| **AI** | Gemini 3.1 Pro Preview (reasoning), Gemini 3.1 Flash (chat + diagnostics), Gemini 3.1 Flash Live Preview (voice) |
 | **Voice I/O** | Web Audio API + AudioWorklet, 16 kHz PCM pipeline |
 | **Gestures** | MediaPipe Hands (lazy-loaded) |
 | **Backend** | Vercel Edge Functions, Supabase Postgres (with RLS) |

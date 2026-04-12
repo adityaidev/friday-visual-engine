@@ -10,7 +10,7 @@ import { fetchLiveToken } from '../services/geminiService';
 
 export type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-const LIVE_MODEL = 'gemini-live-2.5-flash-native-audio';
+const LIVE_MODEL = 'gemini-3.1-flash-live-preview';
 
 const generateSystemTool: FunctionDeclaration = {
   name: 'generate_system',
