@@ -29,8 +29,12 @@ import { saveSystem } from '../../services/storage';
 import { useToast } from '../../hooks/useToast';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
-const InitializationSequence: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
+const InitializationSequence: React.FC<{ onCancel?: () => void; estMs?: number }> = ({
+  onCancel,
+  estMs = 30_000,
+}) => {
   const [progress, setProgress] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [statusIndex, setStatusIndex] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [displayedText, setDisplayedText] = useState('');
@@ -53,22 +57,21 @@ const InitializationSequence: React.FC<{ onCancel?: () => void }> = ({ onCancel 
   );
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 99) return 99;
-        const remaining = 100 - prev;
-        const noise = Math.random() * 0.5;
-        return Math.min(99, prev + remaining / 20 + noise);
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const total = statuses.length;
-    const newIndex = Math.min(total - 1, Math.floor((progress / 100) * total));
-    setStatusIndex((prev) => (prev !== newIndex ? newIndex : prev));
-  }, [progress, statuses.length]);
+    const started = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - started;
+      setElapsedMs(elapsed);
+      const pctRaw = (elapsed / estMs) * 95;
+      const pct = pctRaw < 95 ? pctRaw : 95 + Math.min(4, (elapsed - estMs) / 5_000);
+      setProgress(Math.min(99, pct));
+      const total = statuses.length;
+      const si = Math.min(total - 1, Math.floor((pct / 95) * total));
+      setStatusIndex((prev) => (prev !== si ? si : prev));
+    };
+    tick();
+    const iv = setInterval(tick, 200);
+    return () => clearInterval(iv);
+  }, [estMs, statuses.length]);
 
   useEffect(() => {
     const targetText = statuses[statusIndex];
@@ -168,6 +171,10 @@ const InitializationSequence: React.FC<{ onCancel?: () => void }> = ({ onCancel 
             <span className="text-4xl font-black text-white tracking-tighter" aria-live="polite">
               {displayProgress}
               <span className="text-sm text-gray-500">%</span>
+            </span>
+            <span className="text-[10px] font-mono text-cyan-400/60 mt-1 tracking-wider">
+              {(elapsedMs / 1000).toFixed(1)}s
+              {elapsedMs > estMs ? ' · deep analysis' : ''}
             </span>
           </div>
         </div>

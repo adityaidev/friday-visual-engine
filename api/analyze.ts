@@ -4,7 +4,8 @@ import { handlePreflight, jsonResponse, errorResponse } from './_shared/cors';
 import { checkRateLimit, clientIp, rateLimitHeaders } from './_shared/ratelimit';
 import { normalizeAnalysis, sanitizeQuery } from './_shared/validate';
 
-export const config = { runtime: 'edge' };
+export const config = { maxDuration: 60 };
+export const maxDuration = 60;
 
 export default async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get('origin');
@@ -50,8 +51,8 @@ export default async function handler(req: Request): Promise<Response> {
     const parts: Array<Record<string, unknown>> = [
       {
         text: imageBase64
-          ? `Analyze this technical image. Deconstruct the object shown into a 3D engineering assembly. Context: ${query}`
-          : `Perform a deep structural engineering breakdown and 3D reconstruction of: ${query}. Create realistic composite geometries for every part. If the system is complex (chip, engine, building), generate 20+ components.`,
+          ? `Analyze this technical image. Deconstruct it into a 3D engineering assembly with 6-15 components. Context: ${query}`
+          : `Engineering breakdown of: ${query}. Generate a 3D reconstruction with 6-15 composite components. For extremely complex systems (full engines, chips, buildings), you may use up to 20 components. Prefer fewer well-detailed components over many shallow ones.`,
       },
     ];
     if (imageBase64) {
