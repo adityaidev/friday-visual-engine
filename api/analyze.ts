@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getClient, MODELS, SYSTEM_INSTRUCTION_ARCHITECT } from './_shared/gemini.js';
-import { AnalysisSchema } from './_shared/schemas.js';
 import { checkRateLimit } from './_shared/ratelimit.js';
 import { normalizeAnalysis, sanitizeQuery } from './_shared/validate.js';
 
@@ -74,16 +73,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const ai = getClient();
     const modelId = tier === 'flash' ? MODELS.fast : MODELS.reasoning;
 
+    const schemaHint = `
+Return JSON matching EXACTLY this shape:
+{
+  "systemName": string,
+  "description": string (1-2 sentences),
+  "components": [
+    {
+      "name": "Snake_Case_Name",
+      "type": "COMPUTE" | "STORAGE" | "NETWORK" | "SENSOR" | "MECHANICAL" | "POWER",
+      "status": "optimal",
+      "description": string (short),
+      "connections": [string names of other components],
+      "relativePosition": [x, y, z],
+      "structure": [
+        { "shape": "BOX"|"CYLINDER"|"SPHERE"|"CAPSULE"|"CONE"|"TORUS",
+          "args": [w, h, d] or [r, h] or [r],
+          "position": [x, y, z],
+          "rotation": [rx, ry, rz],
+          "colorHex": "#RRGGBB" }
+      ]
+    }
+  ]
+}`;
+
     const parts: Array<Record<string, unknown>> = [
       {
         text: imageBase64
-          ? `Analyze this technical image. Deconstruct the object shown into a 3D engineering assembly. List every visible component AND infer the internal mechanisms. For complex machines target 20-30+ components. Each component must be a composite of multiple primitives. Context: ${query}`
-          : `Perform a deep structural engineering breakdown and 3D reconstruction of: ${query}.
-- List EVERY functional sub-assembly — structural chassis, housings, internals, fasteners, controls, sensors, wiring paths.
-- For complex machines (engines, appliances, chips, vehicles, turbines): generate at LEAST 20, typically 25-30 components.
-- Each component MUST be a composite of 2-6 primitives arranged to form a realistic, recognisable shape.
-- Assign precise local positions/rotations so primitives form coherent solids.
-- Use colorHex on primitives to differentiate materials (copper #b87333, steel #C0C0C0, rubber #2a2a2a, wiring #ff7a00).`,
+          ? `Engineering breakdown of the object in this image. Generate 20-30 components, each a composite of 2-6 primitives forming a recognisable shape. Context: ${query}\n${schemaHint}`
+          : `Engineering breakdown and 3D reconstruction of: ${query}.
+Rules:
+- Generate 20-30 functional components for complex machines. List every visible + inferred part.
+- Each component is a composite of 2-6 primitives placed to form a realistic recognisable shape.
+- Position components in 3D space with proper engineering spacing (housing around internals, shaft through bearings, etc.).
+- Use colorHex per primitive for materials (steel #C0C0C0, copper #b87333, rubber #2a2a2a, glass #8899aa, plastic #444, wiring #ff7a00).
+- Names in Snake_Case_With_Context (e.g. Suspension_Strut_Rear_Left, not "Part1").
+${schemaHint}`,
       },
     ];
     if (imageBase64) {
@@ -93,13 +118,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       parts.push({ inlineData: { mimeType: mime, data } });
     }
 
+    // Strict responseSchema with Pro adds 30s+ of constrained-decoding overhead.
+    // Using mimetype-only lets Pro generate the same content in ~half the time.
     const response = await ai.models.generateContent({
       model: modelId,
       contents: { role: 'user', parts },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ARCHITECT,
         responseMimeType: 'application/json',
-        responseSchema: AnalysisSchema,
       },
     });
 
