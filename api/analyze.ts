@@ -71,7 +71,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   try {
     const ai = getClient();
-    const modelId = tier === 'flash' ? MODELS.fast : MODELS.reasoning;
+    // Pro model for the smart part (naming/layout of 20+ components).
+    // Flash-lite for the mechanical structure-fill phase (not a reasoning task).
+    // This keeps Pro-tier intelligence where it matters while fitting Vercel's 60s cap.
+    const skeletonModel = tier === 'flash' ? MODELS.fast : MODELS.reasoning;
+    const structureModel = MODELS.fast;
 
     const imagePart = (() => {
       if (!imageBase64) return null;
@@ -110,7 +114,7 @@ No prose. JSON array only.`;
     if (imagePart) skelParts.push(imagePart);
 
     const skelResp = await ai.models.generateContent({
-      model: modelId,
+      model: skeletonModel,
       contents: { role: 'user', parts: skelParts },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ARCHITECT,
@@ -159,7 +163,7 @@ No prose. JSON array only.`;
 
     const runStruct = (part: Array<Record<string, unknown>>) =>
       ai.models.generateContent({
-        model: modelId,
+        model: structureModel,
         contents: buildStructurePrompt(part),
         config: { responseMimeType: 'application/json' },
       });
