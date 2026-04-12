@@ -9,16 +9,19 @@ export interface AnalyzeOptions {
   signal?: AbortSignal;
 }
 
+const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 413, 504]);
+
 async function fetchWithBackoff(
   url: string,
   init: RequestInit,
-  maxRetries = 3,
+  maxRetries = 2,
 ): Promise<Response> {
   let attempt = 0;
   let lastErr: unknown;
   while (attempt < maxRetries) {
     try {
       const res = await fetch(url, init);
+      if (NO_RETRY_STATUSES.has(res.status)) return res;
       if (res.status === 429 || res.status >= 500) {
         const body = await res.clone().json().catch(() => null);
         const retryAfter =
@@ -35,6 +38,7 @@ async function fetchWithBackoff(
     } catch (e) {
       lastErr = e;
       if ((init.signal as AbortSignal | undefined)?.aborted) throw e;
+      if (attempt >= maxRetries - 1) throw e;
       await sleep(Math.min(30_000, 2 ** attempt * 1000 + Math.random() * 500));
       attempt++;
     }
@@ -71,7 +75,7 @@ export async function analyzeSystem(opts: AnalyzeOptions): Promise<SystemAnalysi
     body: JSON.stringify({
       query: opts.query,
       imageBase64: opts.imageBase64,
-      tier: opts.tier || 'pro',
+      tier: opts.tier || 'flash',
     }),
     signal: opts.signal,
   });
