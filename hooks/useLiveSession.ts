@@ -217,7 +217,7 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
 
           try {
             activeSessionRef.current?.sendRealtimeInput({
-              media: { mimeType: 'audio/pcm;rate=16000', data: base64 },
+              audio: { mimeType: 'audio/pcm;rate=16000', data: base64 },
             });
           } catch {
             /* dropped */
