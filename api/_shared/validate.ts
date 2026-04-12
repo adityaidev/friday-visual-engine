@@ -1,4 +1,4 @@
-import { PrimitiveShape } from '../../types';
+import { PrimitiveShape } from '../../types.js';
 
 export function normalizeAnalysis(raw: unknown): {
   systemName: string;

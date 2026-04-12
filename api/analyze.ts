@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getClient, MODELS, SYSTEM_INSTRUCTION_ARCHITECT } from './_shared/gemini';
-import { AnalysisSchema } from './_shared/schemas';
-import { checkRateLimit, clientIp, rateLimitHeaders } from './_shared/ratelimit';
-import { normalizeAnalysis, sanitizeQuery } from './_shared/validate';
+import { getClient, MODELS, SYSTEM_INSTRUCTION_ARCHITECT } from './_shared/gemini.js';
+import { AnalysisSchema } from './_shared/schemas.js';
+import { checkRateLimit } from './_shared/ratelimit.js';
+import { normalizeAnalysis, sanitizeQuery } from './_shared/validate.js';
 
 export const config = { maxDuration: 60 };
 export const maxDuration = 60;
