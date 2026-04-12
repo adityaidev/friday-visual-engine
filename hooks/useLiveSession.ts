@@ -350,8 +350,14 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
 
         sessionPromise
           .then((sess) => {
+            console.log('[FRIDAY Live] session resolved');
             if (shouldBeConnectedRef.current) {
               activeSessionRef.current = sess;
+              // Safety net — some SDK versions don't reliably fire onopen
+              setIsConnected(true);
+              setVoiceState('listening');
+              isReadyRef.current = true;
+              retryCountRef.current = 0;
             } else {
               sess.close();
             }
