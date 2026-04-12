@@ -151,6 +151,7 @@ const TechPart: React.FC<{
   scanY: number;
   isScanning: boolean;
 }> = ({ data, onSelect, isSelected, expansion, registerRef, scanY, isScanning }) => {
+  const [hovered, setHovered] = React.useState(false);
   const { type, relativePosition, id, structure } = data;
   const groupRef = useRef<THREE.Group>(null);
   const targetPos = useMemo(() => new THREE.Vector3(), []);
@@ -185,11 +186,14 @@ const TechPart: React.FC<{
         e.stopPropagation();
         onSelect(id);
       }}
-      onPointerOver={() => {
+      onPointerOver={(e) => {
+        e.stopPropagation?.();
         document.body.style.cursor = 'pointer';
+        setHovered(true);
       }}
       onPointerOut={() => {
         document.body.style.cursor = 'auto';
+        setHovered(false);
       }}
     >
       {structure && structure.length > 0 ? (
@@ -217,24 +221,26 @@ const TechPart: React.FC<{
           isScanning={isScanning}
         />
       )}
-      <Billboard position={[0, 1.6, 0]} follow>
-        <Text
-          fontSize={isSelected ? 0.32 : 0.24}
-          color={isSelected ? '#ffffff' : labelColor}
-          anchorX="center"
-          anchorY="middle"
-          outlineWidth={0.035}
-          outlineColor="#030712"
-          outlineBlur={0.05}
-          renderOrder={2}
-          depthOffset={-1}
-          material-depthTest={false}
-          material-transparent={true}
-          material-toneMapped={false}
-        >
-          {data.name}
-        </Text>
-      </Billboard>
+      {(isSelected || hovered) && (
+        <Billboard position={[0, 1.2, 0]} follow>
+          <Text
+            fontSize={isSelected ? 0.28 : 0.22}
+            color={isSelected ? '#ffffff' : labelColor}
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.035}
+            outlineColor="#030712"
+            outlineBlur={0.05}
+            renderOrder={3}
+            depthOffset={-2}
+            material-depthTest={false}
+            material-transparent={true}
+            material-toneMapped={false}
+          >
+            {data.name}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 };
