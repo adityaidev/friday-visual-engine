@@ -93,31 +93,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // ─────────────────────── Phase 1: Pro reasons about the whole object ────────
     // Full skeleton + layout. Pro's reasoning is critical here to pick the right
     // 24-28 parts and position them coherently in shared world space.
-    const skeletonPrompt = `Design a 3D engineering reconstruction of: ${query || 'the object in the image'}.
+    const skeletonPrompt = `You are laying out a 3D engineering assembly of: ${query || 'the object in the image'}.
 
-CRITICAL SHAPE RULES — READ CAREFULLY:
-1. Pick REAL-WORLD proportions for the target. E.g.:
-   - Washing machine: ~6 wide × 7 tall × 6 deep (rectangular cabinet with round door on front)
-   - V8 engine: ~6 wide × 4 tall × 5 deep
-   - TPU chip: ~4 × 0.3 × 4 (flat square with components on top)
-2. The FIRST component MUST be the outer Chassis/Cabinet/Housing — a SINGLE large bounding shape (usually a BOX) that defines the silhouette. This IS the recognizable outline of the object.
-3. All subsequent components fit INSIDE or ON this chassis. They are SMALLER than the chassis.
-4. Generate 22-28 components total.
-5. Position every component with its relativePosition inside the chassis volume. E.g. door on front face (z = +3), motor low-rear (y = -2, z = -2), control panel top-front (y = +3, z = +3).
-6. primitiveHint tells the builder EXACTLY what to draw, with proportions relative to the full assembly:
-   - Good: "thin vertical box 5×6.8×5 for outer cabinet", "cylinder r=2 L=3.5 horizontal for wash drum", "torus r=1.5 t=0.15 for door seal ring", "box 2×0.6×0.3 for control panel"
-   - Bad: "some shape", "various parts"
+COORDINATE SYSTEM — EVERY COMPONENT USES THIS SHARED FRAME:
+• X-axis: left(-) ↔ right(+)
+• Y-axis: bottom(-) ↔ top(+)
+• Z-axis: back(-) ↔ front(+) (front = where user looks from)
+• Origin (0,0,0) is the geometric centre of the outer chassis.
 
-JSON array ONLY, no prose, no markdown fence:
+DETERMINE THE BOUNDING BOX for the target:
+• Washing machine: W=6, H=7, D=6 (tall rectangular cabinet)
+• V8/I4 engine: W=6, H=4, D=5
+• Turbojet: W=4, H=4, D=10 (long cylindrical)
+• CPU/TPU chip: W=4, H=0.3, D=4 (flat)
+• Passenger car: W=5, H=3, D=10
+• Smartphone: W=0.7, H=3, D=0.1 (very thin)
+• Building: W=6, H=12, D=6
+• Drone: W=4, H=1, D=4
+• Robot arm: W=2, H=5, D=2
+• Rocket engine: W=3, H=6, D=3
+Match an appropriate bounding box to the target query.
+
+COMPONENT #1 — always the outer shell/chassis:
+• A SINGLE BOX (or CYLINDER for curved bodies) sized exactly to the bounding box W×H×D
+• relativePosition: [0, 0, 0]
+• Example hint: "box W=6 H=7 D=6 for outer washing machine cabinet"
+
+COMPONENT #2..N — placed INSIDE or ON the shell. Positions spread across the volume:
+• Top face parts: y = +H/2 (e.g. lid at [0, 3.5, 0])
+• Bottom face / feet: y = -H/2 (e.g. foot_rear_left at [-2.3, -3.5, -2.3])
+• Front face parts: z = +D/2 (e.g. door at [0, 0, 3.0], control panel at [0, 3.0, 2.8])
+• Back face: z = -D/2 (e.g. power cable at [1.5, -2.8, -3.0])
+• Left side: x = -W/2 (e.g. left vent at [-3.0, 1, 0])
+• Right side: x = +W/2
+• INSIDE the volume: any x,y,z within (-W/2+0.5, -H/2+0.5, -D/2+0.5) .. (+W/2-0.5, +H/2-0.5, +D/2-0.5)
+  (e.g. inner drum at [0, 0.3, 0.5], motor at [0, -2.3, -1.5])
+
+SPREAD RULE: positions must be genuinely distributed. NO TWO COMPONENTS should have identical relativePosition. If two parts (e.g. left/right springs) are symmetric, mirror them across an axis (one at x=-2.3, other at x=+2.3).
+
+WASHING MACHINE EXAMPLE POSITIONS (follow this pattern, do not copy verbatim):
+• Outer_Cabinet [0,0,0] (box 6×7×6)
+• Top_Lid [0,3.6,0] (box 5.8×0.2×5.8)
+• Control_Panel [0,3.1,2.7] (box 4×0.6×0.2)
+• Interface_Display [-0.8,3.1,2.82] (box 1.2×0.4×0.05)
+• Detergent_Drawer [-1.5,3.15,2.75] (box 1.4×0.4×0.4)
+• Door_Frame [0,0,2.9] (torus r=1.5 t=0.15)
+• Door_Glass [0,0,2.85] (cylinder r=1.3 L=0.15)
+• Door_Latch [1.5,0,2.9] (box 0.3×0.15×0.3)
+• Inner_Drum [0,0.3,0.3] (cylinder r=2 L=3 horizontal)
+• Drum_Housing [0,0.3,0.3] (cylinder r=2.3 L=3.2 horizontal)
+• Main_Drive_Pulley [0,0.3,-1.9] (cylinder r=1 L=0.15)
+• Drive_Belt [0,-1,-1.9] (torus r=1.4 t=0.08)
+• Drive_Motor [1,-2.1,-1.5] (cylinder r=0.7 L=1)
+• Drain_Pump [-2,-2.5,1] (cylinder r=0.5 L=0.6)
+• Water_Inlet_Valve [2,2.5,-2.9] (box 0.4×0.4×0.3)
+• Water_Inlet_Hose [2,1.5,-2.9] (cylinder r=0.1 L=2)
+• Heating_Element [0,-2,0] (cylinder r=0.1 L=2.5)
+• Temperature_Sensor [-1,-2,0.5] (cylinder r=0.15 L=0.3)
+• Pressure_Sensor [1,-2,0.5] (cylinder r=0.15 L=0.3)
+• Control_PCB [0,3.1,2.3] (box 3×0.2×0.8)
+• Counterweight_Front [0,0.5,1.5] (box 3×1×0.5 heavy)
+• Counterweight_Top [0,2,0.3] (box 3×0.4×2)
+• Suspension_Spring_Front_Left [-2,2.5,2] (capsule r=0.15 L=1.8)
+• Suspension_Spring_Front_Right [2,2.5,2] (capsule r=0.15 L=1.8)
+• Suspension_Spring_Rear_Left [-2,2.5,-2] (capsule r=0.15 L=1.8)
+• Suspension_Spring_Rear_Right [2,2.5,-2] (capsule r=0.15 L=1.8)
+• Shock_Absorber_Front [0,-2.5,1.8] (cylinder r=0.2 L=1.5)
+• Shock_Absorber_Rear [0,-2.5,-1.8] (cylinder r=0.2 L=1.5)
+• Foot_Front_Left [-2.7,-3.5,2.7] (cylinder r=0.15 L=0.3)
+• Foot_Front_Right [2.7,-3.5,2.7] (cylinder r=0.15 L=0.3)
+• Foot_Rear_Left [-2.7,-3.5,-2.7] (cylinder r=0.15 L=0.3)
+• Foot_Rear_Right [2.7,-3.5,-2.7] (cylinder r=0.15 L=0.3)
+• Power_Cable_Gland [2,-3,-2.9] (cylinder r=0.12 L=0.3)
+• Drain_Hose [-2.5,-2.8,0] (cylinder r=0.2 L=2)
+That's 30 components — use similar density.
+
+Produce 22-30 components. Use symmetric naming for paired parts (Front_Left, Front_Right). Output ONLY a JSON array (no prose, no markdown fence):
 [{ "name": "Snake_Case_Name",
    "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
    "description": "short",
    "relativePosition": [x,y,z],
    "connections": [ names ],
-   "primitiveHint": "specific shape + size"
+   "primitiveHint": "specific shape + size (e.g. 'cylinder r=0.5 L=1.2 vertical for drain pump body')"
 }]
 
-The FIRST component must be the outer shell. Subsequent components ordered from largest to smallest.`;
+First component MUST be the outer shell at [0,0,0]. Remaining components ordered largest→smallest. NO duplicate positions.`;
 
     const skelParts: Array<Record<string, unknown>> = [{ text: skeletonPrompt }];
     if (imagePart) skelParts.push(imagePart);
