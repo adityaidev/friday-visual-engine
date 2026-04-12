@@ -147,10 +147,15 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
       if (!shouldBeConnectedRef.current) return;
 
       try {
+        console.log('[FRIDAY Live] Fetching token...');
         const tokenInfo = await fetchLiveToken();
         if (!shouldBeConnectedRef.current) return;
+        console.log('[FRIDAY Live] Got token, ephemeral:', tokenInfo.ephemeral ?? tokenInfo.fallback !== true);
 
-        const client = new GoogleGenAI({ apiKey: tokenInfo.token });
+        const client = new GoogleGenAI({
+          apiKey: tokenInfo.token,
+          apiVersion: 'v1alpha',
+        } as unknown as { apiKey: string });
 
         const AudioCtx =
           (window.AudioContext as typeof AudioContext) ||
@@ -224,6 +229,7 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
         sink.gain.value = 0;
         worklet.connect(sink).connect(inputCtx.destination);
 
+        console.log('[FRIDAY Live] Connecting WS to', LIVE_MODEL);
         const sessionPromise = client.live.connect({
           model: LIVE_MODEL,
           config: {
@@ -234,6 +240,7 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
           },
           callbacks: {
             onopen: () => {
+              console.log('[FRIDAY Live] WS opened');
               if (!shouldBeConnectedRef.current) {
                 sessionPromise.then((s) => s.close()).catch(() => {});
                 return;
@@ -310,13 +317,23 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
                 }
               }
             },
-            onclose: () => {
+            onclose: (e: unknown) => {
+              console.warn('[FRIDAY Live] WS closed', e);
               if (shouldBeConnectedRef.current) disconnect();
             },
-            onerror: (err) => {
+            onerror: (err: unknown) => {
               if (!shouldBeConnectedRef.current) return;
-              console.error('Live error', err);
-              if (retryCountRef.current < 3) {
+              const errObj = err as { message?: string; reason?: string; code?: number };
+              const msg =
+                errObj?.message || errObj?.reason || (err as Error)?.toString?.() || 'unknown';
+              console.error('[FRIDAY Live] WS error:', msg, err);
+              setError(`Voice: ${msg}`.slice(0, 120));
+              // Stop retrying on obvious 4xx / auth issues
+              if (/401|403|400|404|invalid|auth/i.test(msg)) {
+                disconnect();
+                return;
+              }
+              if (retryCountRef.current < 2) {
                 retryCountRef.current += 1;
                 isReadyRef.current = false;
                 setTimeout(() => {
@@ -325,7 +342,6 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
                   attempt();
                 }, 800 * retryCountRef.current);
               } else {
-                setError('Voice channel unreachable');
                 disconnect();
               }
             },
@@ -342,13 +358,9 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
           })
           .catch((e) => {
             if (!shouldBeConnectedRef.current) return;
-            if (retryCountRef.current < 3) {
-              retryCountRef.current += 1;
-              setTimeout(attempt, 800);
-            } else {
-              setError(`Connection failed: ${(e as Error).message}`);
-              disconnect();
-            }
+            console.error('[FRIDAY Live] sessionPromise rejected:', e);
+            setError(`Voice init failed: ${(e as Error).message}`.slice(0, 120));
+            disconnect();
           });
 
         // Volume analyser loop

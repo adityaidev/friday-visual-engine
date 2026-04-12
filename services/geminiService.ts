@@ -122,11 +122,16 @@ export async function chatWithFriday(
 
 export async function fetchLiveToken(
   signal?: AbortSignal,
-): Promise<{ token: string; expiresAt: number; fallback?: boolean }> {
+): Promise<{ token: string; expiresAt: number; fallback?: boolean; ephemeral?: boolean }> {
   const res = await fetchWithBackoff(
     `${API_BASE}/live-token`,
     { method: 'POST', signal },
     2,
   );
-  return parseOrThrow<{ token: string; expiresAt: number; fallback?: boolean }>(res);
+  return parseOrThrow<{
+    token: string;
+    expiresAt: number;
+    fallback?: boolean;
+    ephemeral?: boolean;
+  }>(res);
 }
