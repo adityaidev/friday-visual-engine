@@ -1,47 +1,73 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getClient, MODELS, SYSTEM_INSTRUCTION_ARCHITECT } from './_shared/gemini';
 import { AnalysisSchema } from './_shared/schemas';
-import { handlePreflight, jsonResponse, errorResponse } from './_shared/cors';
 import { checkRateLimit, clientIp, rateLimitHeaders } from './_shared/ratelimit';
 import { normalizeAnalysis, sanitizeQuery } from './_shared/validate';
 
 export const config = { maxDuration: 60 };
 export const maxDuration = 60;
 
-export default async function handler(req: Request): Promise<Response> {
-  const origin = req.headers.get('origin');
-  const pre = handlePreflight(req);
-  if (pre) return pre;
+function applyCors(res: VercelResponse, origin: string | null) {
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+}
 
-  if (req.method !== 'POST') return errorResponse('METHOD_NOT_ALLOWED', 'POST only', 405, origin);
+function applyRateHeaders(res: VercelResponse, rl: { remaining: number; resetMs: number; retryAfterMs?: number }) {
+  res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
+  res.setHeader('X-RateLimit-Reset', String(Math.floor(rl.resetMs / 1000)));
+  if (rl.retryAfterMs) res.setHeader('Retry-After', String(Math.ceil(rl.retryAfterMs / 1000)));
+}
 
-  const ip = clientIp(req);
+function err(res: VercelResponse, code: string, message: string, status = 500, extra: Record<string, unknown> = {}) {
+  return res.status(status).json({ error: { code, message, ...extra } });
+}
+
+function clientIpFromNode(req: VercelRequest): string {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string') return fwd.split(',')[0]?.trim() || 'unknown';
+  if (Array.isArray(fwd) && fwd[0]) return fwd[0].split(',')[0]?.trim() || 'unknown';
+  const real = req.headers['x-real-ip'];
+  if (typeof real === 'string') return real;
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  const origin = (req.headers.origin as string | undefined) || null;
+  applyCors(res, origin);
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  if (req.method !== 'POST') {
+    err(res, 'METHOD_NOT_ALLOWED', 'POST only', 405);
+    return;
+  }
+
+  const ip = clientIpFromNode(req);
   const rl = await checkRateLimit(ip, 'analyze');
+  applyRateHeaders(res, rl);
   if (!rl.ok) {
-    return errorResponse(
-      'RATE_LIMIT',
-      'Too many analyze requests. Try again later.',
-      429,
-      origin,
-      { retryAfterMs: rl.retryAfterMs },
-    );
+    err(res, 'RATE_LIMIT', 'Too many analyze requests. Try again later.', 429, {
+      retryAfterMs: rl.retryAfterMs,
+    });
+    return;
   }
 
-  let body: { query?: unknown; imageBase64?: unknown; tier?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return errorResponse('BAD_REQUEST', 'Invalid JSON body', 400, origin);
-  }
-
+  const body = (req.body || {}) as { query?: unknown; imageBase64?: unknown; tier?: unknown };
   const query = sanitizeQuery(body.query, 4000);
   const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined;
   const tier = body.tier === 'flash' ? 'flash' : 'pro';
 
   if (!query && !imageBase64) {
-    return errorResponse('BAD_REQUEST', 'query or imageBase64 required', 400, origin);
+    err(res, 'BAD_REQUEST', 'query or imageBase64 required', 400);
+    return;
   }
   if (imageBase64 && imageBase64.length > 8_000_000) {
-    return errorResponse('BAD_REQUEST', 'Image too large (max ~6MB)', 413, origin);
+    err(res, 'BAD_REQUEST', 'Image too large (max ~6MB)', 413);
+    return;
   }
 
   try {
@@ -73,39 +99,37 @@ export default async function handler(req: Request): Promise<Response> {
     });
 
     const text = response.text;
-    if (!text) return errorResponse('UPSTREAM', 'Empty response from model', 502, origin);
+    if (!text) {
+      err(res, 'UPSTREAM', 'Empty response from model', 502);
+      return;
+    }
 
     const clean = text.replace(/```json|```/g, '').trim();
     let raw: unknown;
     try {
       raw = JSON.parse(clean);
     } catch {
-      return errorResponse('UPSTREAM', 'Model returned invalid JSON', 502, origin);
+      err(res, 'UPSTREAM', 'Model returned invalid JSON', 502);
+      return;
     }
 
     let normalized;
     try {
       normalized = normalizeAnalysis(raw);
     } catch (e) {
-      return errorResponse('UPSTREAM', (e as Error).message, 502, origin);
+      err(res, 'UPSTREAM', (e as Error).message, 502);
+      return;
     }
 
-    return new Response(JSON.stringify(normalized), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin || '*',
-        ...rateLimitHeaders(rl),
-      },
-    });
+    res.status(200).json(normalized);
   } catch (e) {
     const msg = (e as Error).message || 'Unknown error';
     const isQuota = /quota|429|RESOURCE_EXHAUSTED/i.test(msg);
-    return errorResponse(
+    err(
+      res,
       isQuota ? 'QUOTA_EXCEEDED' : 'UPSTREAM',
       isQuota ? 'Gemini quota exhausted. Try flash tier or retry later.' : msg,
       isQuota ? 429 : 502,
-      origin,
     );
   }
 }
