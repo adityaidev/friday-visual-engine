@@ -129,44 +129,61 @@ COMPONENT #2..N — placed INSIDE or ON the shell. Positions spread across the v
 • INSIDE the volume: any x,y,z within (-W/2+0.5, -H/2+0.5, -D/2+0.5) .. (+W/2-0.5, +H/2-0.5, +D/2-0.5)
   (e.g. inner drum at [0, 0.3, 0.5], motor at [0, -2.3, -1.5])
 
-SPREAD RULE: positions must be genuinely distributed. NO TWO COMPONENTS should have identical relativePosition. If two parts (e.g. left/right springs) are symmetric, mirror them across an axis (one at x=-2.3, other at x=+2.3).
+SPREAD RULE: positions must be genuinely distributed. NO TWO COMPONENTS share identical relativePosition. Symmetric paired parts mirror across an axis (e.g. Left at x=-2.3, Right at x=+2.3).
 
-WASHING MACHINE EXAMPLE POSITIONS (follow this pattern, do not copy verbatim):
-• Outer_Cabinet [0,0,0] (box 6×7×6)
-• Top_Lid [0,3.6,0] (box 5.8×0.2×5.8)
-• Control_Panel [0,3.1,2.7] (box 4×0.6×0.2)
-• Interface_Display [-0.8,3.1,2.82] (box 1.2×0.4×0.05)
-• Detergent_Drawer [-1.5,3.15,2.75] (box 1.4×0.4×0.4)
-• Door_Frame [0,0,2.9] (torus r=1.5 t=0.15)
-• Door_Glass [0,0,2.85] (cylinder r=1.3 L=0.15)
-• Door_Latch [1.5,0,2.9] (box 0.3×0.15×0.3)
-• Inner_Drum [0,0.3,0.3] (cylinder r=2 L=3 horizontal)
-• Drum_Housing [0,0.3,0.3] (cylinder r=2.3 L=3.2 horizontal)
-• Main_Drive_Pulley [0,0.3,-1.9] (cylinder r=1 L=0.15)
-• Drive_Belt [0,-1,-1.9] (torus r=1.4 t=0.08)
-• Drive_Motor [1,-2.1,-1.5] (cylinder r=0.7 L=1)
-• Drain_Pump [-2,-2.5,1] (cylinder r=0.5 L=0.6)
-• Water_Inlet_Valve [2,2.5,-2.9] (box 0.4×0.4×0.3)
-• Water_Inlet_Hose [2,1.5,-2.9] (cylinder r=0.1 L=2)
-• Heating_Element [0,-2,0] (cylinder r=0.1 L=2.5)
-• Temperature_Sensor [-1,-2,0.5] (cylinder r=0.15 L=0.3)
-• Pressure_Sensor [1,-2,0.5] (cylinder r=0.15 L=0.3)
-• Control_PCB [0,3.1,2.3] (box 3×0.2×0.8)
-• Counterweight_Front [0,0.5,1.5] (box 3×1×0.5 heavy)
-• Counterweight_Top [0,2,0.3] (box 3×0.4×2)
-• Suspension_Spring_Front_Left [-2,2.5,2] (capsule r=0.15 L=1.8)
-• Suspension_Spring_Front_Right [2,2.5,2] (capsule r=0.15 L=1.8)
-• Suspension_Spring_Rear_Left [-2,2.5,-2] (capsule r=0.15 L=1.8)
-• Suspension_Spring_Rear_Right [2,2.5,-2] (capsule r=0.15 L=1.8)
-• Shock_Absorber_Front [0,-2.5,1.8] (cylinder r=0.2 L=1.5)
-• Shock_Absorber_Rear [0,-2.5,-1.8] (cylinder r=0.2 L=1.5)
-• Foot_Front_Left [-2.7,-3.5,2.7] (cylinder r=0.15 L=0.3)
-• Foot_Front_Right [2.7,-3.5,2.7] (cylinder r=0.15 L=0.3)
-• Foot_Rear_Left [-2.7,-3.5,-2.7] (cylinder r=0.15 L=0.3)
-• Foot_Rear_Right [2.7,-3.5,-2.7] (cylinder r=0.15 L=0.3)
-• Power_Cable_Gland [2,-3,-2.9] (cylinder r=0.12 L=0.3)
-• Drain_Hose [-2.5,-2.8,0] (cylinder r=0.2 L=2)
-That's 30 components — use similar density.
+PLACEMENT PATTERNS BY COMPONENT ROLE (apply regardless of object type):
+• Outer shell / chassis / housing / body → [0, 0, 0], primitive sized to full bbox
+• Top covers / lids / roofs → y ≈ +H/2
+• Bases / feet / mounting plates → y ≈ -H/2
+• Front panels / doors / displays / inlets-you-look-at → z ≈ +D/2
+• Back ports / exhausts / rear cables → z ≈ -D/2
+• Side vents / handles → x ≈ ±W/2
+• Primary internal part (drum, rotor, die, crankshaft) → near origin [0, 0, 0]
+• Secondary internals (motor, pump, PSU) → offset inside volume, y below center typical
+• Sensors / small electronics → scattered on surfaces near their role
+• Fasteners / feet → 4 corners, mirrored pairs at [±X, ±Y, ±Z]
+• Wiring / pipes → connect between functional endpoints along routed paths
+
+SHORT REFERENCE EXAMPLES (different objects, same discipline):
+
+[A] V8 Engine (W=6, H=4, D=5) — 24 parts
+  Engine_Block[0,0,0] (box 6×4×5)
+  Cylinder_Head_Left[-1.5,1.6,0] (box 2.6×0.8×4.5)
+  Cylinder_Head_Right[1.5,1.6,0] (box 2.6×0.8×4.5)
+  Crankshaft[0,-1.4,0] (cylinder r=0.3 L=4.5 horizontal)
+  Oil_Pan[0,-2.1,0] (box 5×0.8×4.5)
+  Intake_Manifold[0,2.3,0] (box 2×0.9×4)
+  Piston_1..4 left bank at [-1,-0.2,Z] for Z in {-1.6,-0.5,0.5,1.6]
+  Piston_5..8 right bank at [1,-0.2,Z]
+  Exhaust_Manifold_Left[-2.7,0,0] (cylinder r=0.15 L=4.5)
+  Exhaust_Manifold_Right[2.7,0,0]
+  Mount_Bracket_Front_Left[-2.5,-1.5,2.3], Mount_Bracket_Front_Right[2.5,-1.5,2.3]
+  ...
+
+[B] TPU/CPU chip (W=4, H=0.4, D=4) — 20 parts
+  Package_Substrate[0,0,0] (box 4×0.2×4)
+  Silicon_Die_Main[0,0.15,0] (box 2×0.05×2)
+  Core_Tile_NW[-0.5,0.2,-0.5] (box 0.4×0.02×0.4)
+  Core_Tile_NE[0.5,0.2,-0.5], Core_Tile_SW[-0.5,0.2,0.5], Core_Tile_SE[0.5,0.2,0.5]
+  HBM_Stack_Left[-1.4,0.25,0] (box 0.6×0.3×1.4)
+  HBM_Stack_Right[1.4,0.25,0]
+  Bga_Pin_grid 16 pins at y=-0.18 on 4×4 grid
+  ...
+
+[C] Quadcopter drone (W=4, H=1, D=4) — 22 parts
+  Central_Hub[0,0,0] (box 1.2×0.4×1.2)
+  Arm_NE[1.2,0,-1.2] (box 1.6×0.12×0.2 rotated 45°)
+  Arm_NW[-1.2,0,-1.2], Arm_SE[1.2,0,1.2], Arm_SW[-1.2,0,1.2]
+  Motor_NE[1.9,0.15,-1.9] (cylinder r=0.2 L=0.3)
+  Motor_NW, Motor_SE, Motor_SW (mirrored)
+  Propeller_NE[1.9,0.32,-1.9] (box 2×0.03×0.1 rotated)
+  Propeller_NW, SE, SW
+  Battery[0,-0.2,0] (box 0.8×0.2×0.6)
+  Flight_Controller_PCB[0,0.2,0] (box 0.6×0.05×0.6)
+  Landing_Leg_Front, Landing_Leg_Rear (capsule r=0.04 L=0.6 at y=-0.5)
+  ...
+
+For the actual target, use THIS LEVEL of spatial discipline. Generate 22-30 components.
 
 Produce 22-30 components. Use symmetric naming for paired parts (Front_Left, Front_Right). Output ONLY a JSON array (no prose, no markdown fence):
 [{ "name": "Snake_Case_Name",
