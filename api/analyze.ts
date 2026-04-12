@@ -93,23 +93,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // ─────────────────────── Phase 1: Pro reasons about the whole object ────────
     // Full skeleton + layout. Pro's reasoning is critical here to pick the right
     // 24-28 parts and position them coherently in shared world space.
-    const skeletonPrompt = `You are reconstructing: ${query || 'the object in the image'}.
+    const skeletonPrompt = `Design a 3D engineering reconstruction of: ${query || 'the object in the image'}.
 
-Output 24-28 components that TOGETHER FORM a recognizable ${query}.
-All relativePosition[] values share one world coordinate system. The primary shell / chassis / frame defines the outer silhouette; secondary parts nest inside or attach on the shell. The whole assembly fits roughly in a 10x10x10 box at origin.
+CRITICAL SHAPE RULES — READ CAREFULLY:
+1. Pick REAL-WORLD proportions for the target. E.g.:
+   - Washing machine: ~6 wide × 7 tall × 6 deep (rectangular cabinet with round door on front)
+   - V8 engine: ~6 wide × 4 tall × 5 deep
+   - TPU chip: ~4 × 0.3 × 4 (flat square with components on top)
+2. The FIRST component MUST be the outer Chassis/Cabinet/Housing — a SINGLE large bounding shape (usually a BOX) that defines the silhouette. This IS the recognizable outline of the object.
+3. All subsequent components fit INSIDE or ON this chassis. They are SMALLER than the chassis.
+4. Generate 22-28 components total.
+5. Position every component with its relativePosition inside the chassis volume. E.g. door on front face (z = +3), motor low-rear (y = -2, z = -2), control panel top-front (y = +3, z = +3).
+6. primitiveHint tells the builder EXACTLY what to draw, with proportions relative to the full assembly:
+   - Good: "thin vertical box 5×6.8×5 for outer cabinet", "cylinder r=2 L=3.5 horizontal for wash drum", "torus r=1.5 t=0.15 for door seal ring", "box 2×0.6×0.3 for control panel"
+   - Bad: "some shape", "various parts"
 
-primitiveHint should be SPECIFIC: e.g. "thin vertical box 0.6x3.0x0.6 for strut",
-"horizontal cylinder r=0.2 L=1.5 for pipe", "torus r=1.1 t=0.1 for door ring".
-The hint tells a builder exactly which primitives to use and their rough size.
-
-JSON array only:
+JSON array ONLY, no prose, no markdown fence:
 [{ "name": "Snake_Case_Name",
    "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
    "description": "short",
    "relativePosition": [x,y,z],
-   "connections": [ other names ],
-   "primitiveHint": "one short sentence of specific shape + size"
-}]`;
+   "connections": [ names ],
+   "primitiveHint": "specific shape + size"
+}]
+
+The FIRST component must be the outer shell. Subsequent components ordered from largest to smallest.`;
 
     const skelParts: Array<Record<string, unknown>> = [{ text: skeletonPrompt }];
     if (imagePart) skelParts.push(imagePart);

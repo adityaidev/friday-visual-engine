@@ -202,15 +202,20 @@ const TechPart: React.FC<{
           isScanning={isScanning}
         />
       )}
-      <Billboard position={[0, 1.4, 0]}>
+      <Billboard position={[0, 1.6, 0]} follow>
         <Text
-          fontSize={isSelected ? 0.26 : 0.2}
+          fontSize={isSelected ? 0.32 : 0.24}
           color={isSelected ? '#ffffff' : labelColor}
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.025}
+          outlineWidth={0.035}
           outlineColor="#030712"
-          outlineBlur={0.02}
+          outlineBlur={0.05}
+          renderOrder={2}
+          depthOffset={-1}
+          material-depthTest={false}
+          material-transparent={true}
+          material-toneMapped={false}
         >
           {data.name}
         </Text>
