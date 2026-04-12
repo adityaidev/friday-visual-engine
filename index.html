@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#030712" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>FRIDAY — Immersive Engineering Visual Intelligence</title>
+    <meta
+      name="description"
+      content="FRIDAY is a generative 3D engineering visualization engine powered by Gemini 3.1 Pro. Turn voice commands, sketches, and prompts into interactive mechanical assemblies in real time."
+    />
+    <meta name="keywords" content="Gemini, 3D engineering, AI, WebGL, Three.js, simulation, visualization" />
+    <meta name="author" content="Aditya" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="FRIDAY — Generative Engineering Visualization" />
+    <meta property="og:description" content="Design faster. Diagnose visually. Powered by Gemini 3.1 Pro." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:url" content="https://friday-visual-engine.vercel.app" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FRIDAY — Generative Engineering Visualization" />
+    <meta name="twitter:description" content="Design faster. Diagnose visually. Powered by Gemini 3.1 Pro." />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              lumina: {
+                base: '#030712',
+                glass: 'rgba(255, 255, 255, 0.05)',
+                border: 'rgba(255, 255, 255, 0.1)',
+                cyan: '#00f0ff',
+                purple: '#bd00ff',
+                success: '#00ff9d',
+              },
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              scan: 'scan 2s linear infinite',
+            },
+            keyframes: {
+              scan: {
+                '0%': { transform: 'translateY(-100%)' },
+                '100%': { transform: 'translateY(100%)' },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background-color: #030712;
+        color: #e5e7eb;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+      }
+      .glass-panel {
+        background: rgba(10, 10, 20, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+      ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+      :focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      <div style="padding:2rem;color:#fff;font-family:sans-serif">
+        FRIDAY requires JavaScript and a GPU-enabled browser to run. Please enable JavaScript.
+      </div>
+    </noscript>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

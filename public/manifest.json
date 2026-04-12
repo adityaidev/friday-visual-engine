@@ -1,0 +1,25 @@
+{
+  "name": "FRIDAY — Visual Engineering Intelligence",
+  "short_name": "FRIDAY",
+  "description": "Generative 3D engineering visualization engine powered by Gemini 3.1 Pro",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "theme_color": "#030712",
+  "background_color": "#030712",
+  "categories": ["productivity", "education", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

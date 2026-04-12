@@ -1,0 +1,51 @@
+{
+  "name": "friday-visual-engine",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FRIDAY — Immersive engineering visual intelligence engine powered by Gemini 3.1 Pro",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@google/genai": "^1.31.0",
+    "@react-three/cannon": "^6.6.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "@supabase/supabase-js": "^2.45.0",
+    "framer-motion": "^12.23.25",
+    "lucide-react": "^0.556.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "three": "^0.181.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.181.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.10.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/ui": "^2.1.0",
+    "eslint": "^9.10.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "jsdom": "^25.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "~5.8.2",
+    "vercel": "^50.4.0",
+    "vite": "^6.2.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,26 @@
+name: Bug Report
+description: Report a defect in FRIDAY
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug report.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Steps to reproduce + expected vs actual behavior
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser + OS
+      placeholder: "Chrome 130 on Windows 11"
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console output (if any)
+      render: shell
