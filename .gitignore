@@ -51,3 +51,5 @@ coverage
 
 # Misc
 *.tsbuildinfo
+
+.vercel

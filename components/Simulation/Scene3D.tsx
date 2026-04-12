@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { Canvas, useFrame, useThree, ThreeElements } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars, Environment, Text, Edges, Billboard, AdaptiveDpr, AdaptiveEvents, PerformanceMonitor } from '@react-three/drei';
 import * as THREE from 'three';
 import { SystemComponent, NodeType, PrimitiveShape, GeometricPrimitive, CursorState } from '../../types';
@@ -47,8 +47,6 @@ const TypeColors: Record<NodeType, string> = {
   [NodeType.POWER]: '#ffa500',
   [NodeType.UNKNOWN]: '#ffffff',
 };
-
-type AnyProps = Record<string, unknown>;
 
 const GeometryRenderer: React.FC<{ shape: PrimitiveShape; args: number[] }> = React.memo(
   ({ shape, args }) => {
@@ -161,8 +159,8 @@ const TechPart: React.FC<{
   return (
     <group
       ref={groupRef}
-      onClick={(e: ThreeElements['group']['onClick'] extends (ev: infer E) => unknown ? E : never) => {
-        e?.stopPropagation?.();
+      onClick={(e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation();
         onSelect(id);
       }}
       onPointerOver={() => {
@@ -234,19 +232,20 @@ const DynamicLine: React.FC<{
     geometry.computeBoundingSphere();
   });
 
-  return (
-    <line geometry={geometry as unknown as THREE.BufferGeometry} {...({} as AnyProps)}>
-      <lineDashedMaterial
-        ref={materialRef}
-        color="#777777"
-        transparent
-        opacity={0.4}
-        dashSize={0.2}
-        gapSize={0.1}
-        depthTest={false}
-      />
-    </line>
-  );
+  const lineObj = useMemo(() => {
+    const mat = new THREE.LineDashedMaterial({
+      color: '#777777',
+      transparent: true,
+      opacity: 0.4,
+      dashSize: 0.2,
+      gapSize: 0.1,
+      depthTest: false,
+    });
+    materialRef.current = mat;
+    return new THREE.Line(geometry, mat);
+  }, [geometry]);
+
+  return <primitive object={lineObj} />;
 };
 
 const DataStreams: React.FC<{

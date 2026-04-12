@@ -47,7 +47,8 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
   const isMutedRef = useRef(false);
   const isReadyRef = useRef(false);
   const shouldBeConnectedRef = useRef(false);
-  const activeSessionRef = useRef<{ close: () => void; sendRealtimeInput: (arg: unknown) => void; sendToolResponse: (arg: unknown) => void } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeSessionRef = useRef<any>(null);
   const retryCountRef = useRef(0);
 
   const inputCtxRef = useRef<AudioContext | null>(null);
@@ -291,10 +292,10 @@ export const useLiveSession = (onCommand?: (cmd: string) => void) => {
                 };
               }
 
-              if (msg.toolCall) {
+              if (msg.toolCall?.functionCalls) {
                 for (const fc of msg.toolCall.functionCalls) {
                   if (fc.name === 'generate_system') {
-                    const desc = fc.args['system_description'] as string;
+                    const desc = (fc.args?.['system_description'] ?? '') as string;
                     onCommandRef.current?.(desc);
                     sessionPromise.then((s) => {
                       s.sendToolResponse({

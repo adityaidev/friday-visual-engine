@@ -10,19 +10,19 @@ interface Props {
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+  override componentDidCatch(error: Error, info: React.ErrorInfo): void {
     console.error('[ErrorBoundary]', error, info);
   }
 
   reset = (): void => this.setState({ error: null });
 
-  render(): React.ReactNode {
+  override render(): React.ReactNode {
     if (!this.state.error) return this.props.children;
     if (this.props.fallback) return this.props.fallback(this.state.error, this.reset);
 
