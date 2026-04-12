@@ -95,95 +95,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // 24-28 parts and position them coherently in shared world space.
     const skeletonPrompt = `You are laying out a 3D engineering assembly of: ${query || 'the object in the image'}.
 
-COORDINATE SYSTEM — EVERY COMPONENT USES THIS SHARED FRAME:
-• X-axis: left(-) ↔ right(+)
-• Y-axis: bottom(-) ↔ top(+)
-• Z-axis: back(-) ↔ front(+) (front = where user looks from)
-• Origin (0,0,0) is the geometric centre of the outer chassis.
+You are an expert engineering mind. Use your own reasoning to decide what this object actually looks like, its real-world proportions, and every functional sub-assembly. The rules below are a SPATIAL FRAMEWORK — you fill it in intelligently.
 
-DETERMINE THE BOUNDING BOX for the target:
-• Washing machine: W=6, H=7, D=6 (tall rectangular cabinet)
-• V8/I4 engine: W=6, H=4, D=5
-• Turbojet: W=4, H=4, D=10 (long cylindrical)
-• CPU/TPU chip: W=4, H=0.3, D=4 (flat)
-• Passenger car: W=5, H=3, D=10
-• Smartphone: W=0.7, H=3, D=0.1 (very thin)
-• Building: W=6, H=12, D=6
-• Drone: W=4, H=1, D=4
-• Robot arm: W=2, H=5, D=2
-• Rocket engine: W=3, H=6, D=3
-Match an appropriate bounding box to the target query.
+COORDINATE FRAME (shared by all components):
+• X: left(-) ↔ right(+)
+• Y: bottom(-) ↔ top(+)
+• Z: back(-) ↔ front(+)
+• Origin (0,0,0) = geometric centre of the outer shell
 
-COMPONENT #1 — always the outer shell/chassis:
-• A SINGLE BOX (or CYLINDER for curved bodies) sized exactly to the bounding box W×H×D
-• relativePosition: [0, 0, 0]
-• Example hint: "box W=6 H=7 D=6 for outer washing machine cabinet"
+STEP 1 — decide proportions yourself:
+Think about how the real object looks from the outside. Pick a bounding box W × H × D that reflects its natural aspect ratio (tall vs flat vs long vs cubic). Keep the longest side ≤ 12 so it fits the camera.
 
-COMPONENT #2..N — placed INSIDE or ON the shell. Positions spread across the volume:
-• Top face parts: y = +H/2 (e.g. lid at [0, 3.5, 0])
-• Bottom face / feet: y = -H/2 (e.g. foot_rear_left at [-2.3, -3.5, -2.3])
-• Front face parts: z = +D/2 (e.g. door at [0, 0, 3.0], control panel at [0, 3.0, 2.8])
-• Back face: z = -D/2 (e.g. power cable at [1.5, -2.8, -3.0])
-• Left side: x = -W/2 (e.g. left vent at [-3.0, 1, 0])
-• Right side: x = +W/2
-• INSIDE the volume: any x,y,z within (-W/2+0.5, -H/2+0.5, -D/2+0.5) .. (+W/2-0.5, +H/2-0.5, +D/2-0.5)
-  (e.g. inner drum at [0, 0.3, 0.5], motor at [0, -2.3, -1.5])
+STEP 2 — Component #1 is ALWAYS the outer shell:
+A single primitive (usually BOX, or CYLINDER / SPHERE for curved bodies) sized to that bounding box, at relativePosition [0,0,0]. This primitive IS the recognisable silhouette.
 
-SPREAD RULE: positions must be genuinely distributed. NO TWO COMPONENTS share identical relativePosition. Symmetric paired parts mirror across an axis (e.g. Left at x=-2.3, Right at x=+2.3).
+STEP 3 — every other component:
+Sits INSIDE or ON the shell. Decide for each: which face does it belong to? what's its role? Then place its relativePosition consistently:
+• roofs/lids/top panels → y near +H/2
+• feet/bases/floor → y near -H/2
+• doors/displays/front-facing intakes → z near +D/2
+• rear exhausts/cables/ports → z near -D/2
+• side vents/handles/wheels → x near ±W/2
+• primary internal (rotor, crankshaft, die, drum) → near origin
+• secondary internals (motor, pump, PSU) → offset within volume
+• fasteners/feet/mounts → 4 symmetric corners at [±X, ±Y, ±Z]
+• wiring/pipes → positioned between their connecting endpoints
 
-PLACEMENT PATTERNS BY COMPONENT ROLE (apply regardless of object type):
-• Outer shell / chassis / housing / body → [0, 0, 0], primitive sized to full bbox
-• Top covers / lids / roofs → y ≈ +H/2
-• Bases / feet / mounting plates → y ≈ -H/2
-• Front panels / doors / displays / inlets-you-look-at → z ≈ +D/2
-• Back ports / exhausts / rear cables → z ≈ -D/2
-• Side vents / handles → x ≈ ±W/2
-• Primary internal part (drum, rotor, die, crankshaft) → near origin [0, 0, 0]
-• Secondary internals (motor, pump, PSU) → offset inside volume, y below center typical
-• Sensors / small electronics → scattered on surfaces near their role
-• Fasteners / feet → 4 corners, mirrored pairs at [±X, ±Y, ±Z]
-• Wiring / pipes → connect between functional endpoints along routed paths
+STEP 4 — SPREAD: no two components share identical relativePosition. Symmetric pairs mirror across an axis. Spread parts across ALL six face regions plus interior — don't cluster everything at origin.
 
-SHORT REFERENCE EXAMPLES (different objects, same discipline):
+STEP 5 — primitiveHint: tell the builder EXACTLY what to draw with specific size. Examples of a GOOD hint:
+  "box 0.4×0.4×0.3 for water inlet valve body"
+  "cylinder r=0.2 L=1.5 horizontal for exhaust pipe"
+  "torus r=1.5 t=0.15 for door seal ring"
+Bad hint: "some shape", "a part", "cylinder".
 
-[A] V8 Engine (W=6, H=4, D=5) — 24 parts
-  Engine_Block[0,0,0] (box 6×4×5)
-  Cylinder_Head_Left[-1.5,1.6,0] (box 2.6×0.8×4.5)
-  Cylinder_Head_Right[1.5,1.6,0] (box 2.6×0.8×4.5)
-  Crankshaft[0,-1.4,0] (cylinder r=0.3 L=4.5 horizontal)
-  Oil_Pan[0,-2.1,0] (box 5×0.8×4.5)
-  Intake_Manifold[0,2.3,0] (box 2×0.9×4)
-  Piston_1..4 left bank at [-1,-0.2,Z] for Z in {-1.6,-0.5,0.5,1.6]
-  Piston_5..8 right bank at [1,-0.2,Z]
-  Exhaust_Manifold_Left[-2.7,0,0] (cylinder r=0.15 L=4.5)
-  Exhaust_Manifold_Right[2.7,0,0]
-  Mount_Bracket_Front_Left[-2.5,-1.5,2.3], Mount_Bracket_Front_Right[2.5,-1.5,2.3]
-  ...
+Produce 22-30 components for any non-trivial object. For a simple item (bolt, gear, wrench) match the real part count (5-12).
 
-[B] TPU/CPU chip (W=4, H=0.4, D=4) — 20 parts
-  Package_Substrate[0,0,0] (box 4×0.2×4)
-  Silicon_Die_Main[0,0.15,0] (box 2×0.05×2)
-  Core_Tile_NW[-0.5,0.2,-0.5] (box 0.4×0.02×0.4)
-  Core_Tile_NE[0.5,0.2,-0.5], Core_Tile_SW[-0.5,0.2,0.5], Core_Tile_SE[0.5,0.2,0.5]
-  HBM_Stack_Left[-1.4,0.25,0] (box 0.6×0.3×1.4)
-  HBM_Stack_Right[1.4,0.25,0]
-  Bga_Pin_grid 16 pins at y=-0.18 on 4×4 grid
-  ...
+Output ONLY a JSON array, no prose, no markdown fence:
+[{ "name": "Snake_Case_Descriptive_Name",
+   "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
+   "description": "short",
+   "relativePosition": [x,y,z],
+   "connections": [ names of adjacent components ],
+   "primitiveHint": "specific shape + exact size"
+}]
 
-[C] Quadcopter drone (W=4, H=1, D=4) — 22 parts
-  Central_Hub[0,0,0] (box 1.2×0.4×1.2)
-  Arm_NE[1.2,0,-1.2] (box 1.6×0.12×0.2 rotated 45°)
-  Arm_NW[-1.2,0,-1.2], Arm_SE[1.2,0,1.2], Arm_SW[-1.2,0,1.2]
-  Motor_NE[1.9,0.15,-1.9] (cylinder r=0.2 L=0.3)
-  Motor_NW, Motor_SE, Motor_SW (mirrored)
-  Propeller_NE[1.9,0.32,-1.9] (box 2×0.03×0.1 rotated)
-  Propeller_NW, SE, SW
-  Battery[0,-0.2,0] (box 0.8×0.2×0.6)
-  Flight_Controller_PCB[0,0.2,0] (box 0.6×0.05×0.6)
-  Landing_Leg_Front, Landing_Leg_Rear (capsule r=0.04 L=0.6 at y=-0.5)
-  ...
-
-For the actual target, use THIS LEVEL of spatial discipline. Generate 22-30 components.
+First component = outer shell at [0,0,0]. Subsequent components ordered largest→smallest. Use the FULL 3D volume.`;
 
 Produce 22-30 components. Use symmetric naming for paired parts (Front_Left, Front_Right). Output ONLY a JSON array (no prose, no markdown fence):
 [{ "name": "Snake_Case_Name",
