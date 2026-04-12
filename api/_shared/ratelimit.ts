@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 const LIMITS: Record<string, { max: number; windowSec: number }> = {
-  analyze: { max: 10, windowSec: 3600 },
-  diagnostics: { max: 20, windowSec: 3600 },
-  chat: { max: 100, windowSec: 3600 },
-  live_token: { max: 20, windowSec: 86400 },
-  default: { max: 60, windowSec: 3600 },
+  analyze: { max: 60, windowSec: 3600 },
+  diagnostics: { max: 60, windowSec: 3600 },
+  chat: { max: 200, windowSec: 3600 },
+  live_token: { max: 60, windowSec: 86400 },
+  default: { max: 200, windowSec: 3600 },
 };
 
 function supabaseAdmin() {
