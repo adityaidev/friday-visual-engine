@@ -2,16 +2,16 @@
 
 All notable changes to FRIDAY will be documented here. Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.0.0] — 2026-04-12
+## [1.0.0] - 2026-04-12
 
 ### Added
-- **Server-side Gemini proxy** — all Gemini API calls now route through Vercel Edge Functions (`/api/analyze`, `/api/diagnostics`, `/api/chat`, `/api/live-token`). API key is never shipped to the browser.
-- **Ephemeral token flow** for Gemini Live audio — client gets short-lived tokens from the server before opening the WebSocket.
-- **Supabase integration** — persistent system storage with share links (`/?s=<hash>`), Postgres-backed rate limiter, and row-level security.
-- **Per-IP rate limiting** — 10 analyze / 20 diagnostic / 100 chat / 20 live-token per hour (or day) with exponential backoff and circuit-breaker behavior.
-- **AudioWorklet-based mic pipeline** — proper 16 kHz downsampling in a dedicated audio thread, Int16 clamping, no more `ScriptProcessorNode`.
-- **Keyboard shortcuts** — `G`/`I`/`L` tab switching, `S` deep scan, `E` explode toggle, `R` regenerate, `Esc` cancel.
-- **Accessibility pass** — ARIA labels, roles, focus-visible rings, `prefers-reduced-motion`, skip-link, screen-reader status regions.
+- **Server-side Gemini proxy** - all Gemini API calls now route through Vercel Edge Functions (`/api/analyze`, `/api/diagnostics`, `/api/chat`, `/api/live-token`). API key is never shipped to the browser.
+- **Ephemeral token flow** for Gemini Live audio - client gets short-lived tokens from the server before opening the WebSocket.
+- **Supabase integration** - persistent system storage with share links (`/?s=<hash>`), Postgres-backed rate limiter, and row-level security.
+- **Per-IP rate limiting** - 10 analyze / 20 diagnostic / 100 chat / 20 live-token per hour (or day) with exponential backoff and circuit-breaker behavior.
+- **AudioWorklet-based mic pipeline** - proper 16 kHz downsampling in a dedicated audio thread, Int16 clamping, no more `ScriptProcessorNode`.
+- **Keyboard shortcuts** - `G`/`I`/`L` tab switching, `S` deep scan, `E` explode toggle, `R` regenerate, `Esc` cancel.
+- **Accessibility pass** - ARIA labels, roles, focus-visible rings, `prefers-reduced-motion`, skip-link, screen-reader status regions.
 - **ErrorBoundary** wrapping Scene3D / HUD / HandControls, with user-facing recovery.
 - **Toast system** for async feedback.
 - **Share / Regenerate / Cancel** actions on the HUD.

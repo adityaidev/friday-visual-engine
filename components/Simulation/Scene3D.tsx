@@ -14,10 +14,10 @@ import {
 import * as THREE from 'three';
 import { SystemComponent, NodeType, PrimitiveShape, GeometricPrimitive, CursorState } from '../../types';
 
-// Holographic blueprint palette — translucent white surfaces with bright
+// Holographic blueprint palette - translucent white surfaces with bright
 // cyan edges, matching the reference (see-through cabinet with internals
 // visible through the walls, labels floating near each part).
-const EDGE_COLOR = '#4de3ff'; // bright cyan — dominant edge line
+const EDGE_COLOR = '#4de3ff'; // bright cyan - dominant edge line
 const EDGE_SELECTED = '#ffffff';
 const LABEL_COLORS: Record<NodeType, string> = {
   [NodeType.COMPUTE]: '#4de3ff',
@@ -71,7 +71,7 @@ const ProceduralMesh: React.FC<{
   const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
-  // Translucent holographic surface — clean white tinted slightly by material,
+  // Translucent holographic surface - clean white tinted slightly by material,
   // low opacity so interior parts show through outer shell.
   const surfaceColor = useMemo(() => {
     const base = new THREE.Color('#eef4ff');
@@ -428,7 +428,7 @@ const SceneContent: React.FC<{
       <color attach="background" args={['#030712']} />
       <fog attach="fog" args={['#030712', 55, 140]} />
 
-      {/* Even CAD-blueprint lighting — no harsh shadows, everything readable */}
+      {/* Even CAD-blueprint lighting - no harsh shadows, everything readable */}
       <ambientLight intensity={0.9} />
       <hemisphereLight args={['#e8eef7', '#1a2030', 0.6]} />
       <directionalLight position={[14, 20, 10]} intensity={0.6} color="#ffffff" />

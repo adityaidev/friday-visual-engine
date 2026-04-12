@@ -1,4 +1,4 @@
-# FRIDAY — Deployment Guide
+# FRIDAY - Deployment Guide
 
 ## TL;DR for future deploys
 
@@ -11,10 +11,10 @@ git push origin main   # Vercel auto-deploys on push
 ### 1. Prerequisites
 
 - Node ≥ 22
-- Gemini API key — https://aistudio.google.com/apikey
-- Vercel account — `vercel login`
-- Supabase account — `supabase login`
-- GitHub CLI — `gh auth login`
+- Gemini API key - https://aistudio.google.com/apikey
+- Vercel account - `vercel login`
+- Supabase account - `supabase login`
+- GitHub CLI - `gh auth login`
 
 ### 2. Clone & install
 

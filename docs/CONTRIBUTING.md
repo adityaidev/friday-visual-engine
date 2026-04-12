@@ -16,7 +16,7 @@ npm run dev
 ## Branch / commit conventions
 
 - Branch: `feat/short-description`, `fix/short-description`, `docs/short-description`.
-- Commit: [Conventional Commits](https://www.conventionalcommits.org/) — `feat:`, `fix:`, `docs:`, `refactor:`, `perf:`, `test:`, `chore:`.
+- Commit: [Conventional Commits](https://www.conventionalcommits.org/) - `feat:`, `fix:`, `docs:`, `refactor:`, `perf:`, `test:`, `chore:`.
 - One logical change per PR.
 
 ## Pre-commit checklist

@@ -1,4 +1,4 @@
--- FRIDAY Visual Engine — core tables
+-- FRIDAY Visual Engine - core tables
 
 create extension if not exists "pgcrypto";
 

@@ -22,4 +22,4 @@ Only the `main` branch and the currently deployed production release receive sec
 
 - Rate limiting of public-facing endpoints under load testing (expected to throttle)
 - Model hallucinations or incorrect engineering output
-- Third-party services (Gemini, Supabase, Vercel) — report to respective vendors
+- Third-party services (Gemini, Supabase, Vercel) - report to respective vendors

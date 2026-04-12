@@ -95,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // 24-28 parts and position them coherently in shared world space.
     const skeletonPrompt = `You are laying out a 3D engineering assembly of: ${query || 'the object in the image'}.
 
-You are an expert engineering mind. Use your own reasoning to decide what this object actually looks like, its real-world proportions, and every functional sub-assembly. The rules below are a SPATIAL FRAMEWORK — you fill it in intelligently.
+You are an expert engineering mind. Use your own reasoning to decide what this object actually looks like, its real-world proportions, and every functional sub-assembly. The rules below are a SPATIAL FRAMEWORK - you fill it in intelligently.
 
 COORDINATE FRAME (shared by all components):
 • X: left(-) ↔ right(+)
@@ -103,13 +103,13 @@ COORDINATE FRAME (shared by all components):
 • Z: back(-) ↔ front(+)
 • Origin (0,0,0) = geometric centre of the outer shell
 
-STEP 1 — decide proportions yourself:
+STEP 1 - decide proportions yourself:
 Think about how the real object looks from the outside. Pick a bounding box W × H × D that reflects its natural aspect ratio (tall vs flat vs long vs cubic). Keep the longest side ≤ 12 so it fits the camera.
 
-STEP 2 — Component #1 is ALWAYS the outer shell:
+STEP 2 - Component #1 is ALWAYS the outer shell:
 A single primitive (usually BOX, or CYLINDER / SPHERE for curved bodies) sized to that bounding box, at relativePosition [0,0,0]. This primitive IS the recognisable silhouette.
 
-STEP 3 — every other component:
+STEP 3 - every other component:
 Sits INSIDE or ON the shell. Decide for each: which face does it belong to? what's its role? Then place its relativePosition consistently:
 • roofs/lids/top panels → y near +H/2
 • feet/bases/floor → y near -H/2
@@ -121,9 +121,9 @@ Sits INSIDE or ON the shell. Decide for each: which face does it belong to? what
 • fasteners/feet/mounts → 4 symmetric corners at [±X, ±Y, ±Z]
 • wiring/pipes → positioned between their connecting endpoints
 
-STEP 4 — SPREAD: no two components share identical relativePosition. Symmetric pairs mirror across an axis. Spread parts across ALL six face regions plus interior — don't cluster everything at origin.
+STEP 4 - SPREAD: no two components share identical relativePosition. Symmetric pairs mirror across an axis. Spread parts across ALL six face regions plus interior - don't cluster everything at origin.
 
-STEP 5 — primitiveHint: tell the builder EXACTLY what to draw with specific size. Examples of a GOOD hint:
+STEP 5 - primitiveHint: tell the builder EXACTLY what to draw with specific size. Examples of a GOOD hint:
   "box 0.4×0.4×0.3 for water inlet valve body"
   "cylinder r=0.2 L=1.5 horizontal for exhaust pipe"
   "torus r=1.5 t=0.15 for door seal ring"

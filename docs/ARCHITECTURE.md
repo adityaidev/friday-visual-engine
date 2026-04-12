@@ -1,4 +1,4 @@
-# FRIDAY — Architecture
+# FRIDAY - Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -97,9 +97,9 @@ user clicks Share
 
 1. **Server proxy over direct-from-browser calls.** Prevents API key leakage and gives us a natural rate-limit choke point. Cost: one extra hop (~40ms at the edge).
 2. **Ephemeral tokens for Live API.** Avoids proxying WebSocket traffic (harder on serverless), while still never exposing the long-lived Gemini key.
-3. **Supabase as the single backend store.** Covers DB (systems), rate-limit state, and future Auth — one vendor instead of Redis + Auth0 + Firestore.
+3. **Supabase as the single backend store.** Covers DB (systems), rate-limit state, and future Auth - one vendor instead of Redis + Auth0 + Firestore.
 4. **AudioWorklet over ScriptProcessor.** Off-main-thread, predictable timing, no UI jank, future-proof.
-5. **Strict JSON schema on Gemini output** with server-side validation (`normalizeAnalysis`) — the WebGL layer can never crash from a missing field.
+5. **Strict JSON schema on Gemini output** with server-side validation (`normalizeAnalysis`) - the WebGL layer can never crash from a missing field.
 6. **Adaptive quality tier in R3F.** `PerformanceMonitor` downgrades shadows, environment, and star count on low-FPS devices.
 7. **Error boundaries around each major subsystem.** A bad shader crash doesn't take down the HUD; a gesture failure doesn't take down the 3D view.
 

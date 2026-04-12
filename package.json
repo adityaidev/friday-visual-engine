@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "FRIDAY — Immersive engineering visual intelligence engine powered by Gemini 3.1 Pro",
+  "description": "FRIDAY - Immersive engineering visual intelligence engine powered by Gemini 3.1 Pro",
   "engines": {
     "node": ">=22"
   },

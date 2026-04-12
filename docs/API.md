@@ -1,4 +1,4 @@
-# FRIDAY — Edge Function API
+# FRIDAY - Edge Function API
 
 All endpoints live under `/api/` and run on Vercel's Edge Runtime.
 
@@ -97,7 +97,7 @@ Technical chat with FRIDAY about the active system.
 
 **Rate limit**: 100/hour per IP.
 
-**Response** (200) — `{ "text": "..." }`
+**Response** (200) - `{ "text": "..." }`
 
 ---
 
@@ -142,7 +142,7 @@ Persist a generated system and get a shareable hash.
 
 Fetch a shared system. Cached 1h at the edge.
 
-**Response** (200) — full `SystemAnalysis`.
+**Response** (200) - full `SystemAnalysis`.
 
 ---
 
@@ -150,7 +150,7 @@ Fetch a shared system. Cached 1h at the edge.
 
 List the 20 most recently saved public systems.
 
-**Response** (200) — `{ "systems": [{ "id", "system_name", "share_hash", "created_at" }] }`
+**Response** (200) - `{ "systems": [{ "id", "system_name", "share_hash", "created_at" }] }`
 
 ---
 

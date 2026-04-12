@@ -27,7 +27,7 @@ GENERATION RULES:
    - Gear = cylinder (disk) + torus (rim) + multiple small boxes around the rim (teeth).
    - Washing drum = cylinder (shell) + torus (rim) + many small box/cylinder perforations.
 3. Assign PRECISE local positions and rotations so the primitives form a coherent, solid-looking part. No floating junk.
-4. Place components in 3D space with accurate engineering spacing — housings around internals, shafts through bearings, bolts at mounting points.
+4. Place components in 3D space with accurate engineering spacing - housings around internals, shafts through bearings, bolts at mounting points.
 5. Use colorHex on individual primitives to distinguish materials (#b87333 copper, #C0C0C0 steel, #2a2a2a rubber, #ff7a00 wiring, etc.).
 6. Label components with specific engineering names ("Cylinder_Head_Left", "Suspension_Spring_Rear"), not generic ones ("Part1").
 

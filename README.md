@@ -22,7 +22,7 @@
 
 ## What is FRIDAY?
 
-FRIDAY is a **generative immersive visualization engine** that turns natural-language prompts, technical sketches, and voice commands into interactive 3D mechanical assemblies in real time. It's not a chat app — it's a **neural spatial architect** for hardware and engineering teams.
+FRIDAY is a **generative immersive visualization engine** that turns natural-language prompts, technical sketches, and voice commands into interactive 3D mechanical assemblies in real time. It's not a chat app - it's a **neural spatial architect** for hardware and engineering teams.
 
 - Speak a system name, watch a 3D model compile in front of you
 - Upload a blueprint, get a physics-aware breakdown into sub-assemblies
@@ -49,19 +49,19 @@ FRIDAY is a **generative immersive visualization engine** that turns natural-lan
 ## Features
 
 ### 🧠 Generative Engineering
-- **Text-to-3D** — "Generate a V8 engine" produces 25+ procedurally composed components.
-- **Image-to-3D** — Upload a napkin sketch or schematic; vision infers depth and mechanism.
-- **Composite geometry** — each component is a stack of primitives (cylinder + torus + box), not a single shape.
+- **Text-to-3D** - "Generate a V8 engine" produces 25+ procedurally composed components.
+- **Image-to-3D** - Upload a napkin sketch or schematic; vision infers depth and mechanism.
+- **Composite geometry** - each component is a stack of primitives (cylinder + torus + box), not a single shape.
 
 ### 🩺 Autonomous Diagnostics
 - Runs Gemini Flash over the scene graph to surface failure modes.
 - Severity-graded anomalies with remediation steps.
-- Non-destructive — original model stays intact.
+- Non-destructive - original model stays intact.
 
 ### 🗣️ Multimodal Control
 - **Voice** (Gemini Live WebSocket, <700 ms P50 round-trip).
-- **Hand gestures** (MediaPipe) — pinch to rotate, spread to explode, fist to reset.
-- **Keyboard** — `G` generate, `S` scan, `E` explode, `R` regenerate, `Esc` cancel.
+- **Hand gestures** (MediaPipe) - pinch to rotate, spread to explode, fist to reset.
+- **Keyboard** - `G` generate, `S` scan, `E` explode, `R` regenerate, `Esc` cancel.
 
 ### 🔒 Production-grade Security
 - Gemini API key stays **server-side only** (Vercel Edge).
@@ -136,7 +136,7 @@ Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 - see [LICENSE](LICENSE).
 
 ## Credits
 
