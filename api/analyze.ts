@@ -90,55 +90,135 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return { inlineData: { mimeType: mime, data } };
     })();
 
-    const mainPrompt = `You are reconstructing: ${query || 'the object in the image'}
+    // ─────────────────────── Phase 1: Pro reasons about the whole object ────────
+    // Full skeleton + layout. Pro's reasoning is critical here to pick the right
+    // 24-28 parts and position them coherently in shared world space.
+    const skeletonPrompt = `You are reconstructing: ${query || 'the object in the image'}.
 
-HARD REQUIREMENTS:
-• Output 20-24 components that ASSEMBLE INTO A RECOGNIZABLE shape matching the target. The viewer MUST be able to tell what this is.
-• All components share ONE world coordinate system. relativePosition[] places each component in world space so they fit together (not random clouds).
-• Each component has 2-4 primitives in LOCAL space (around 0,0,0) that form ONE solid sub-assembly.
-• Primary structure first: outer shell / chassis / frame that defines the silhouette. Secondary parts (internals, controls, fasteners) fit inside or on the outer shell.
-• Overall assembly fits roughly in a 10×10×10 bounding box centered at origin.
-• colorHex is crucial: main chassis panels should be light gray/white #d8dde3 or #e8ecf2; accent trim/pipes in steel #b8c0cc, copper #b87333, rubber seals #2a2a2a, control screens #1a1a1a, wiring #ff7a00. No neon colors.
+Output 24-28 components that TOGETHER FORM a recognizable ${query}.
+All relativePosition[] values share one world coordinate system. The primary shell / chassis / frame defines the outer silhouette; secondary parts nest inside or attach on the shell. The whole assembly fits roughly in a 10x10x10 box at origin.
 
-OUTPUT — JSON only, no prose, no markdown fence:
-{
- "systemName": "...",
- "description": "one short sentence",
- "components": [
-  {
-   "name": "Snake_Case_Descriptive_Name",
+primitiveHint should be SPECIFIC: e.g. "thin vertical box 0.6x3.0x0.6 for strut",
+"horizontal cylinder r=0.2 L=1.5 for pipe", "torus r=1.1 t=0.1 for door ring".
+The hint tells a builder exactly which primitives to use and their rough size.
+
+JSON array only:
+[{ "name": "Snake_Case_Name",
    "type": "MECHANICAL"|"COMPUTE"|"STORAGE"|"NETWORK"|"SENSOR"|"POWER",
-   "status": "optimal",
    "description": "short",
-   "connections": ["names of components touching this one"],
    "relativePosition": [x,y,z],
-   "structure": [
-    {"shape":"BOX"|"CYLINDER"|"SPHERE"|"CAPSULE"|"CONE"|"TORUS",
-     "args":[...],
-     "position":[x,y,z],
-     "rotation":[rx,ry,rz],
-     "colorHex":"#RRGGBB"}
-   ]
-  }
- ]
-}
+   "connections": [ other names ],
+   "primitiveHint": "one short sentence of specific shape + size"
+}]`;
 
-args conventions:
- BOX [w,h,d]   CYLINDER [radiusTop, radiusBottom, height]   SPHERE [radius]
- CAPSULE [radius, length]   CONE [radius, height]   TORUS [majorR, minorR]`;
+    const skelParts: Array<Record<string, unknown>> = [{ text: skeletonPrompt }];
+    if (imagePart) skelParts.push(imagePart);
 
-    const parts: Array<Record<string, unknown>> = [{ text: mainPrompt }];
-    if (imagePart) parts.push(imagePart);
-
-    const response = await ai.models.generateContent({
+    const skelResp = await ai.models.generateContent({
       model: modelId,
-      contents: { role: 'user', parts },
+      contents: { role: 'user', parts: skelParts },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ARCHITECT,
         responseMimeType: 'application/json',
         temperature: 0.6,
       },
     });
+    const skelText = (skelResp.text || '').replace(/```json|```/g, '').trim();
+    let skeleton: Array<Record<string, unknown>> = [];
+    try {
+      const parsed = JSON.parse(skelText);
+      skeleton = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as Record<string, unknown>).components)
+          ? ((parsed as Record<string, unknown>).components as Array<Record<string, unknown>>)
+          : [];
+    } catch {
+      err(res, 'UPSTREAM', 'Skeleton JSON invalid', 502);
+      return;
+    }
+    if (skeleton.length < 6) {
+      err(res, 'UPSTREAM', 'Too few components', 502);
+      return;
+    }
+
+    // ─────────────────────── Phase 2: Flash-lite fills structures in parallel ─────
+    // Each half gets the FULL skeleton as shared context so primitives stay
+    // spatially coherent with the whole assembly, not just their subset.
+    const mid = Math.ceil(skeleton.length / 2);
+    const halves = [skeleton.slice(0, mid), skeleton.slice(mid)];
+
+    const fullContext = skeleton.map((c) => ({
+      name: c.name,
+      type: c.type,
+      pos: c.relativePosition,
+      hint: c.primitiveHint,
+    }));
+
+    const buildStructPrompt = (targetHalf: Array<Record<string, unknown>>) => `Given the FULL assembly skeleton (for spatial context):
+${JSON.stringify(fullContext)}
+
+Output the 'structure' primitive array for THESE components only:
+${JSON.stringify(targetHalf.map((c) => ({ name: c.name, hint: c.primitiveHint, pos: c.relativePosition })))}
+
+Each component's structure[] is in LOCAL space (around 0,0,0). Primitives form a solid sub-assembly matching the primitiveHint. Use 2-4 primitives per component.
+
+Colors: steel chassis #d8dde3, white panel #eef1f6, dark grey #4a4f58, rubber #2a2a2a, copper #b87333, glass #8899aa, accent orange #ff7a00.
+
+JSON array only:
+[{ "name": "...",
+   "structure": [
+     { "shape": "BOX"|"CYLINDER"|"SPHERE"|"CAPSULE"|"CONE"|"TORUS",
+       "args": [...],
+       "position": [x,y,z],
+       "rotation": [rx,ry,rz],
+       "colorHex": "#RRGGBB" }
+   ]
+}]`;
+
+    const runStruct = (part: Array<Record<string, unknown>>) =>
+      ai.models.generateContent({
+        model: MODELS.fast,
+        contents: buildStructPrompt(part),
+        config: { responseMimeType: 'application/json', temperature: 0.4 },
+      });
+
+    const [s1, s2] = await Promise.all([runStruct(halves[0]), runStruct(halves[1])]);
+
+    const parseStruct = (r: { text?: string }): Array<Record<string, unknown>> => {
+      try {
+        const t = (r.text || '').replace(/```json|```/g, '').trim();
+        const p = JSON.parse(t);
+        return Array.isArray(p) ? p : (p.components as Array<Record<string, unknown>>) || [];
+      } catch {
+        return [];
+      }
+    };
+
+    const structByName = new Map<string, unknown>();
+    [...parseStruct(s1), ...parseStruct(s2)].forEach((row) => {
+      const n = typeof row.name === 'string' ? row.name.toLowerCase() : '';
+      if (n && row.structure) structByName.set(n, row.structure);
+    });
+
+    const merged = {
+      systemName: query.split('.')[0].trim().slice(0, 80) || 'System',
+      description: `Engineered reconstruction with ${skeleton.length} sub-assemblies.`,
+      components: skeleton.map((s) => ({
+        name: s.name,
+        type: s.type,
+        description: s.description,
+        status: 'optimal',
+        connections: s.connections,
+        relativePosition: s.relativePosition,
+        structure: structByName.get(
+          typeof s.name === 'string' ? s.name.toLowerCase() : '',
+        ) || [
+          { shape: 'BOX', args: [1, 1, 1], position: [0, 0, 0], rotation: [0, 0, 0], colorHex: '#d8dde3' },
+        ],
+      })),
+    };
+
+    const response = { text: JSON.stringify(merged) };
 
     const text = response.text;
     if (!text) {
