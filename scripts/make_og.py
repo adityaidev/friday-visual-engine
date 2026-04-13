@@ -66,7 +66,7 @@ d.text(((W - sw) // 2, 485), sub, font=sub_font, fill=MUTED)
 
 # Footer meta row
 meta_font = ImageFont.truetype(FONT_MONO, 16)
-left = "friday-visual-engine.vercel.app"
+left = "friday.adityaai.dev"
 right = "GEMINI 3.1 PRO · THREE.JS · VERCEL"
 d.text((80, H - 56), left, font=meta_font, fill=TEXT)
 d.text((W - 80, H - 56), right, font=meta_font, fill=MUTED, anchor="rm")

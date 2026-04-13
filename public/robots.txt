@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://friday-visual-engine.vercel.app/sitemap.xml
+Sitemap: https://friday.adityaai.dev/sitemap.xml

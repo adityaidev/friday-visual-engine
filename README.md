@@ -32,7 +32,7 @@ FRIDAY is a **generative immersive visualization engine** that turns natural-lan
 
 ## Live demo
 
-**▸ [friday-visual-engine.vercel.app](https://friday-visual-engine.vercel.app)**
+**▸ [friday.adityaai.dev](https://friday.adityaai.dev)**
 
 ## Tech stack
 
