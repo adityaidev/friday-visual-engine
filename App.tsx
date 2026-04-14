@@ -4,6 +4,7 @@ import { HUD } from './components/Interface/HUD';
 import { HandControls } from './components/Simulation/HandControls';
 import { ErrorBoundary } from './components/Interface/ErrorBoundary';
 import { ToastStack } from './components/Interface/ToastStack';
+import BrandStamp from './components/Interface/BrandStamp';
 import { SystemAnalysis, DiagnosticResult, CursorState } from './types';
 import { Hand } from 'lucide-react';
 import { loadSystem } from './services/storage';
@@ -125,6 +126,11 @@ const App: React.FC = () => {
           />
         </ErrorBoundary>
       </main>
+
+      {/* Cross-site lockup back to adityaai.dev. Sits above the scene and below dialogs. */}
+      <div className="absolute top-4 left-4 z-40 pointer-events-none">
+        <BrandStamp />
+      </div>
 
       <ErrorBoundary>
         <HUD
