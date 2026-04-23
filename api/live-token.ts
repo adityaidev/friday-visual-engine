@@ -81,23 +81,10 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  // Fallback: hand over the long-lived key. Not ideal, but voice breaks otherwise.
-  // Mitigations: per-IP rate-limit on this endpoint (20/day), HTTP referrer restrictions
-  // should be configured on the key in Google Cloud Console.
-  return new Response(
-    JSON.stringify({
-      token: apiKey,
-      expiresAt: Date.now() + sessionTtlSec * 1000,
-      ephemeral: false,
-    }),
-    {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin || '*',
-        'Cache-Control': 'no-store',
-        ...rateLimitHeaders(rl),
-      },
-    },
+  return errorResponse(
+    'TOKEN_UNAVAILABLE',
+    'Ephemeral token generation failed. Please try again later.',
+    503,
+    origin,
   );
 }

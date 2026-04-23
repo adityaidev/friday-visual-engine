@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { handlePreflight, errorResponse } from '../_shared/cors';
+import { checkRateLimit, clientIp, rateLimitHeaders } from '../_shared/ratelimit';
 
 export const config = { runtime: 'edge' };
 
@@ -8,6 +9,14 @@ export default async function handler(req: Request): Promise<Response> {
   const pre = handlePreflight(req);
   if (pre) return pre;
   if (req.method !== 'GET') return errorResponse('METHOD_NOT_ALLOWED', 'GET only', 405, origin);
+
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(ip, 'default');
+  if (!rl.ok) {
+    return errorResponse('RATE_LIMIT', 'List rate limit hit.', 429, origin, {
+      retryAfterMs: rl.retryAfterMs,
+    });
+  }
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
